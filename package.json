@@ -1,13 +1,11 @@
-"scripts": {
-  "start": "node app.js",
-  "db:init": "node db/init.js"
- 
 {
   "name": "fotaza2",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
+    "start": "node app.js",
+    "db:init": "node db/init.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -21,8 +19,6 @@
     "express-session": "^1.19.0",
     "multer": "^2.1.1",
     "pug": "^3.0.4"
-    
   }
-}
 }
 
