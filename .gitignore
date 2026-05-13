@@ -1,0 +1,8 @@
+# Dependencias (muy pesadas)
+node_modules/
+
+# Configuración sensible (claves y secretos)
+.env
+
+# Archivos subidos por usuarios o temporales
+public/uploads/
