@@ -1,0 +1,56 @@
+extends ../layout
+
+block content
+  .row.justify-content-end
+    .col-md-6.col-lg-5
+      .card.shadow-sm.border-0.rounded-4
+        .card-body.p-4.p-md-5
+          h3.text-center.text-primary.mb-4
+            i.bi.bi-box-arrow-in-right.me-2
+            | Iniciar sesión
+
+          if registered
+            .alert.alert-success.alert-dismissible.fade.show
+              i.bi.bi-check-circle.me-2 
+              | Registrado! Ahora, inicia sesión.
+              button.btn-close(type="button" data-bs-dismiss="alert")
+
+          if loggedout
+            .alert.alert-info.alert-dismissible.fade.show
+              i.bi.bi-info-circle.me-2
+              | Has cerrado sesión.
+              button.btn-close(type="button" data-bs-dismiss="alert")
+
+          form(action="/auth/login" method="POST")
+            .mb-3
+              label.form-label(for="email") Correo electronico 
+              .input-group
+                span.input-group-text
+                  i.bi.bi-person
+                input.form-control(
+                  type="text"
+                  id="email"
+                  name="email"
+                  value=email || ''
+                  required
+                  autofocus
+                  )
+            .mb-3
+              label.form-label(for="password") Contraseña
+              .input-group
+                span.input-group-text
+                  i.bi.bi-lock
+                input.form-control(
+                  type="password" 
+                  id="password" 
+                  name="password" 
+                  required
+                  )
+            .d-grid.gap-2
+              button.btn.btn-primary(type="submit")
+                i.bi.bi-box-arrow-in-right.me-2
+                | Entrar
+            hr.my-4
+            p.text-center.mb-0
+              | ¿No tienes cuenta? 
+              a(href="/auth/register") Regístrate acá
