@@ -1,0 +1,55 @@
+nav.navbar.navbar-expand-lg.navbar-dark.bg-dark.shadow-sm
+    .container-fluid
+        a.navbar-brand.fw-bold(href="/")
+            i.bi.bi-image-fill
+            span.ms-2 Fotaza2
+        
+        button.navbar-toggler(type="button", data-bs-toggle="collapse", data-bs-target="#navbarNav", aria-controls="navbarNav", aria-expanded="false", aria-label="Toggle navigation")
+            span.navbar-toggler-icon
+        
+        #navbarNav.collapse.navbar-collapse
+            ul.navbar-nav.ms-auto
+                li.nav-item
+                    a.nav-link(href="/publicaciones") Explorar
+                
+                if currentUser
+                    li.nav-item
+                        a.nav-link(href="/buscar")
+                            i.bi.bi-search
+                            span.ms-2 Buscar
+                    
+                    li.nav-item
+                        a.nav-link(href="/auth/subirFoto")
+                            i.bi.bi-cloud-upload
+                            span.ms-2 Subir
+                    
+                    li.nav-item.dropdown
+                        a.nav-link.dropdown-toggle(href="#", role="button", data-bs-toggle="dropdown", aria-expanded="false")
+                            i.bi.bi-bell
+                            if unreadNotifications
+                                span.badge.bg-danger.ms-2= unreadNotifications
+                        ul.dropdown-menu.dropdown-menu-end
+                            li
+                                a.dropdown-item(href="/notificaciones") Ver todas
+                            li
+                                hr.dropdown-divider
+                            li
+                                a.dropdown-item(href=`/usuarios/${currentUser.id}`)
+                                    i.bi.bi-person.me-2
+                                    | Mi perfil
+                            li
+                                a.dropdown-item(href="/favoritos") Mis favoritos
+                            li
+                                a.dropdown-item(href="/seguidos") Usuarios que sigo
+                            li
+                                hr.dropdown-divider
+                            li
+                                a.dropdown-item(href="/auth/logout")
+                                    i.bi.bi-box-arrow-right
+                                    span.ms-2 Cerrar sesión
+                else
+                    li.nav-item
+                        a.nav-link(href="/auth/login") Iniciar sesión
+                    
+                    li.nav-item
+                        a.nav-link.btn.btn-primary.text-white(href="/auth/register") Registrarse
