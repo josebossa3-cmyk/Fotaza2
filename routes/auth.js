@@ -1,16 +1,25 @@
 const express = require("express");
 const IniciarSesion = require("../db/iniciarSesion");
 const { crearUsuario } = require("../db/crearUsuario");
-const { route } = require("express/lib/application");
+const Publicacion = require("../models/Publicacion");
+const { uploadPublicacion } = require("../middlewares/multerUploads");
 const router = express.Router();
 const pool = require("../db/poolconnect");
 
-// Demo modal de publicación (vista autónoma, sin layout)
-router.get("/modal-demo", (req, res) => {
-  res.render("auth/modal");
-});
+function requireLogin(req, res, next) {
+  if (!req.session.user) {
+    req.flash("error_msg", "Debes iniciar sesión");
+    return res.redirect("/auth/login");
+  }
+  next();
+}
 
-// GET login
+function parseEtiquetas(str) {
+  if (!str || typeof str !== "string") return null;
+  const parts = str.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+  return parts.length ? parts : null;
+}
+
 router.get("/login", (req, res) => {
   if (req.session.user) {
     return res.redirect("/");
@@ -20,46 +29,41 @@ router.get("/login", (req, res) => {
     title: "Iniciar sesión",
     error: null,
     username: "",
-      registered: req.query.registered === 'true',
-    loggedout: req.query.loggedout === 'true'
+    registered: req.query.registered === "true",
+    loggedout: req.query.loggedout === "true",
   });
 });
 
-// POST login
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
-  console.log("Logeado como : ", { email });
   try {
     const resultado = await IniciarSesion(email, password);
 
     if (resultado.success) {
       req.session.token = resultado.token;
-        req.session.user = resultado.usuario;
-        req.session.unreadNotifications = 0;
+      req.session.user = resultado.usuario;
+      req.session.unreadNotifications = 0;
       return res.redirect("/");
-    } else {
-      res.render("auth/login", {
-        title: "Iniciar sesión",
-        error: resultado.message,
-        email,
-        registered: false,
-        loggedout: false
-      });
     }
+    res.render("auth/login", {
+      title: "Iniciar sesión",
+      error: resultado.message,
+      email,
+      registered: false,
+      loggedout: false,
+    });
   } catch (error) {
     console.error("Error en el login", error);
-      return res.render("auth/login", {
-        title: "Iniciar sesión",
-        error: "Error del servidor. Intenta de nuevo.",
-        email: email,
-        registered: false,
-        loggedout: false
+    return res.render("auth/login", {
+      title: "Iniciar sesión",
+      error: "Error del servidor. Intenta de nuevo.",
+      email: email,
+      registered: false,
+      loggedout: false,
     });
   }
 });
-
-// GET registro
 
 router.get("/register", (req, res) => {
   if (req.session.user) {
@@ -74,12 +78,9 @@ router.get("/register", (req, res) => {
   });
 });
 
-// POST registro
-
 router.post("/register", async (req, res) => {
   const { username, email, password, confirm_password } = req.body;
 
-  //validar
   if (!username || !email || !password || !confirm_password) {
     return res.render("auth/register", {
       title: "Registrarse",
@@ -108,13 +109,17 @@ router.post("/register", async (req, res) => {
   }
 
   try {
-    //solo pasamos los 3 argunentos: nombre, email, contra
-
     const resultado = await crearUsuario(username, email, password);
 
     if (resultado.success) {
-      res.redirect("/auth/login?registered=true");
+      return res.redirect("/auth/login?registered=true");
     }
+    return res.render("auth/register", {
+      title: "Registrarse",
+      error: "No se pudo completar el registro",
+      username,
+      email,
+    });
   } catch (error) {
     console.error("Error en el registro", error);
     res.render("auth/register", {
@@ -126,7 +131,6 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// GET cerrar sesion
 router.get("/logout", (req, res) => {
   if (!req.session.user) {
     return res.redirect("/auth/login");
@@ -137,7 +141,6 @@ router.get("/logout", (req, res) => {
   });
 });
 
-// POST cerrar sesion
 router.post("/logout", async (req, res) => {
   try {
     if (req.session.token) {
@@ -149,7 +152,6 @@ router.post("/logout", async (req, res) => {
     console.error("Error al desactivar sesión:", error);
   }
 
-  // Destruir sesión
   req.session.destroy((err) => {
     if (err) {
       console.error("Error al cerrar sesión:", err);
@@ -160,21 +162,14 @@ router.post("/logout", async (req, res) => {
   });
 });
 
-//subir foto
-
-router.get("/subirFoto", async (req, res) => {
-  if (!req.session.user) {
-    return res.redirect("/auth/login");
-  }
-
+router.get("/subirFoto", requireLogin, async (req, res) => {
   try {
-    // Consulta a la tabla publicaciones
     const result = await pool.query(
-      "SELECT id, titulo, descripcion, ruta_archivo AS url, create_timestamp FROM publicaciones ORDER BY create_timestamp DESC"
+      "SELECT id, titulo, descripcion, ruta_archivo AS url, create_timestamp FROM publicaciones ORDER BY create_timestamp DESC LIMIT 24",
     );
 
     res.render("auth/subirFoto", {
-      fotos: result.rows, 
+      fotos: result.rows,
       title: "Subir Foto",
       currentUser: req.session.user,
     });
@@ -188,16 +183,50 @@ router.get("/subirFoto", async (req, res) => {
   }
 });
 
-// Exportar el router como middleware principal para `app.use('/auth', ...)`
-module.exports = router;
+router.post(
+  "/subirFoto",
+  requireLogin,
+  (req, res, next) => {
+    uploadPublicacion.single("imagen")(req, res, (err) => {
+      if (err) {
+        req.flash("error_msg", err.message || "No se pudo subir la imagen");
+        return res.redirect("/auth/subirFoto");
+      }
+      next();
+    });
+  },
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        req.flash("error_msg", "Selecciona una imagen");
+        return res.redirect("/auth/subirFoto");
+      }
 
-// También exportar el helper ensureAuthenticated si otros módulos lo requieren
-module.exports.ensureAuthenticated = function (req, res, next) {
-  if (typeof req.isAuthenticated === 'function' && req.isAuthenticated()) {
-    return next();
-  }
-  if (typeof req.flash === 'function') {
-    req.flash('error_msg', 'Tenes que iniciar sesión');
-  }
-  res.redirect('/auth/login');
-};
+      const titulo = (req.body.titulo || "").trim() || "Sin título";
+      const descripcion = (req.body.descripcion || "").trim() || null;
+      const etiquetas = parseEtiquetas(req.body.etiquetas);
+
+      await Publicacion.create({
+        titulo,
+        descripcion,
+        nombre_archivo: req.file.originalname,
+        ruta_archivo: `/uploads/publicaciones/${req.file.filename}`,
+        tipo_archivo: req.file.mimetype,
+        tamaño_bytes: req.file.size,
+        etiquetas,
+        licencia: null,
+        marca_agua: false,
+        usuario_id: req.session.user.id,
+      });
+
+      req.flash("success_msg", "Publicación publicada");
+      return res.redirect("/publicaciones");
+    } catch (e) {
+      console.error("Error al crear publicación:", e);
+      req.flash("error_msg", "Error al publicar. Intenta de nuevo.");
+      return res.redirect("/auth/subirFoto");
+    }
+  },
+);
+
+module.exports = router;

@@ -4,6 +4,18 @@ block append extra_head
   link(rel="stylesheet" href="/css/explorar.css")
 
 block content
+  -
+    function inicialesDe(nombre) {
+      var p = String(nombre || '').trim().split(/\s+/).filter(Boolean);
+      if (!p.length) return '?';
+      if (p.length === 1) return p[0].slice(0, 2).toUpperCase();
+      return (p[0].charAt(0) + p[p.length - 1].charAt(0)).toUpperCase();
+    }
+    function etiquetaTitulo(key) {
+      var k = String(key || '').toLowerCase();
+      if (!k || k === 'sin-etiqueta') return 'Publicación';
+      return k.charAt(0).toUpperCase() + k.slice(1);
+    }
   .explore-page
     header.explore-header
       h1.explore-title Explorar
@@ -19,13 +31,35 @@ block content
     else if publicaciones && publicaciones.length
       main.explore-grid#exploreGrid
         each pub in publicaciones
-          article.post-card(tabindex="0" data-id=pub.id data-etiqueta=pub.etiquetaKey)
+          -
+            var handlePub = '@' + String(pub.autor || 'usuario').replace(/\s+/g, '_').toLowerCase();
+            var likesN = pub.likes_count != null ? pub.likes_count : 0;
+            var comN = pub.comentarios_count != null ? pub.comentarios_count : 0;
+          article.post-card(
+            role="button"
+            tabindex="0"
+            data-bs-toggle="modal"
+            data-bs-target="#postModal"
+            data-id=pub.id
+            data-etiqueta=pub.etiquetaKey
+            data-image=pub.url
+            data-author=pub.autor
+            data-initials=inicialesDe(pub.autor)
+            data-title=pub.titulo
+            data-category=etiquetaTitulo(pub.etiquetaKey)
+            data-desc=(pub.descripcion || '')
+            data-handle=handlePub
+            data-likes=String(likesN)
+            data-comments=String(comN)
+            data-views="0"
+            data-tags=(pub.tagsCsv || '')
+          )
             .post-card__media
               img.post-card__img(src=pub.url alt=pub.titulo loading="lazy")
             .post-card__overlay
               .post-card__meta
                 span.post-card__avatar(aria-hidden="true")= pub.autor.length ? pub.autor.charAt(0).toUpperCase() : "?"
-                span.post-card__author @#{pub.autor.replace(/\s+/g, "_").toLowerCase()}
+                span.post-card__author= handlePub
     else
       p.explore-empty
         | No hay publicaciones todavía. Sé el primero en

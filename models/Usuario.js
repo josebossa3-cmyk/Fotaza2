@@ -60,7 +60,7 @@ class Usuario {
            bio = COALESCE($2, bio),
            foto_perfil = COALESCE($3, foto_perfil)
        WHERE id = $4
-       RETURNING *`,
+       RETURNING id, nombre, email, foto_perfil, bio`,
       [nombre, bio, foto_perfil, id],
     );
     return result.rows[0];

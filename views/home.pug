@@ -1,9 +1,22 @@
 extends layout
 
 block append extra_head
-    link(rel="stylesheet" href="/css/Stylehome.css")
+    link(rel="stylesheet" href="/css/styleHome.css")
 
 block content
+    -
+        var homeCards = [
+            { layout: 'tall', g: '135deg, #667eea 0%, #764ba2 100%', author: 'Ana Martínez', initials: 'AM', title: 'Luces de neón', cat: 'Fotografía', likes: 2841, liked: '1', desc: 'Capturada en el centro. Cámara: Sony A7IV · f/1.8 · ISO 3200.', comments: 138, views: 14200, tags: 'fotografía, beta' },
+            { layout: '', g: '135deg, #f093fb 0%, #f5576c 100%', author: 'Bruno Silva', initials: 'BS', title: 'Atardecer en Lisboa', cat: 'Viajes', likes: 1204, liked: '', desc: 'Costa atlántica al atardecer.', comments: 52, views: 8900, tags: 'viajes, atardecer' },
+            { layout: '', g: '135deg, #4facfe 0%, #00f2fe 100%', author: 'Clara Liu', initials: 'CL', title: 'Bruma matinal', cat: 'Naturaleza', likes: 892, liked: '', desc: 'Niebla baja en el valle.', comments: 41, views: 6200, tags: 'naturaleza' },
+            { layout: 'tall', g: '135deg, #43e97b 0%, #38f9d7 100%', author: 'Diego Ruiz', initials: 'DR', title: 'Retrato urbano', cat: 'Retrato', likes: 2103, liked: '1', desc: 'Street y luz dura.', comments: 201, views: 21000, tags: 'retrato, urbano' },
+            { layout: '', g: '135deg, #fa709a 0%, #fee140 100%', author: 'Elena Park', initials: 'EP', title: 'Arquitectura moderna', cat: 'Arquitectura', likes: 567, liked: '', desc: 'Líneas y cristal.', comments: 28, views: 4100, tags: 'arquitectura' },
+            { layout: 'wide', g: '135deg, #a18cd1 0%, #fbc2eb 100%', author: 'Félix Torres', initials: 'FT', title: 'Arte abstracto', cat: 'Arte digital', likes: 445, liked: '', desc: 'Composición cromática.', comments: 19, views: 3300, tags: 'arte, color' },
+            { layout: 'tall', g: '135deg, #ffecd2 0%, #fcb69f 100%', author: 'Gaby Chen', initials: 'GC', title: 'Interior cálido', cat: 'Lifestyle', likes: 712, liked: '', desc: 'Luz natural en interior.', comments: 36, views: 5500, tags: 'lifestyle' },
+            { layout: '', g: '135deg, #2af598 0%, #009efd 100%', author: 'Hugo Morales', initials: 'HM', title: 'Olas y roca', cat: 'Paisaje', likes: 933, liked: '1', desc: 'Costa rocosa.', comments: 44, views: 7800, tags: 'paisaje, mar' },
+            { layout: '', g: '135deg, #e0c3fc 0%, #8ec5fc 100%', author: 'Irina Völk', initials: 'IV', title: 'Minimal frío', cat: 'Diseño', likes: 628, liked: '', desc: 'Espacio reducido a esencia.', comments: 22, views: 4900, tags: 'diseño, minimal' },
+            { layout: '', g: '135deg, #f6d365 0%, #fda085 100%', author: 'Jaime Reyes', initials: 'JR', title: 'Mercado local', cat: 'Documental', likes: 401, liked: '', desc: 'Vida cotidiana.', comments: 15, views: 2900, tags: 'documental' },
+        ];
     section.hero-section
         .hero-content
             p.hero-eyebrow Plataforma visual
@@ -27,134 +40,37 @@ block content
                 h2.section-title Inspiración del día
                 
             .masonry-grid
-                .masonry-item.tall
-                    .card-visual(style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)")
-                        .card-overlay
-                            .card-meta
-                                .card-author
-                                    .avatar A
-                                    span Ana Martínez
-                                .card-actions
-                                    button.action-btn
-                                        i.bi.bi-heart
-                                    button.action-btn
-                                        i.bi.bi-bookmark
-
-                .masonry-item
-                    .card-visual(style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%)")
-                        .card-overlay
-                            .card-meta
-                                .card-author
-                                    .avatar B
-                                    span Bruno Silva
-                                .card-actions
-                                    button.action-btn
-                                        i.bi.bi-heart
-                                    button.action-btn
-                                        i.bi.bi-bookmark
-
-                .masonry-item
-                    .card-visual(style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)")
-                        .card-overlay
-                            .card-meta
-                                .card-author
-                                    .avatar C
-                                    span Clara Liu
-                                .card-actions
-                                    button.action-btn
-                                        i.bi.bi-heart
-                                    button.action-btn
-                                        i.bi.bi-bookmark
-
-                .masonry-item.tall
-                    .card-visual(style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)")
-                        .card-overlay
-                            .card-meta
-                                .card-author
-                                    .avatar D
-                                    span Diego Ruiz
-                                .card-actions
-                                    button.action-btn
-                                        i.bi.bi-heart
-                                    button.action-btn
-                                        i.bi.bi-bookmark
-
-                .masonry-item
-                    .card-visual(style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%)")
-                        .card-overlay
-                            .card-meta
-                                .card-author
-                                    .avatar E
-                                    span Elena Park
-                                .card-actions
-                                    button.action-btn
-                                        i.bi.bi-heart
-                                    button.action-btn
-                                        i.bi.bi-bookmark
-
-                .masonry-item.wide
-                    .card-visual(style="background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)")
-                        .card-overlay
-                            .card-meta
-                                .card-author
-                                    .avatar F
-                                    span Félix Torres
-                                .card-actions
-                                    button.action-btn
-                                        i.bi.bi-heart
-                                    button.action-btn
-                                        i.bi.bi-bookmark
-
-                .masonry-item.tall
-                    .card-visual(style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)")
-                        .card-overlay
-                            .card-meta
-                                .card-author
-                                    .avatar G
-                                    span Gaby Chen
-                                .card-actions
-                                    button.action-btn
-                                        i.bi.bi-heart
-                                    button.action-btn
-                                        i.bi.bi-bookmark
-
-                .masonry-item
-                    .card-visual(style="background: linear-gradient(135deg, #2af598 0%, #009efd 100%)")
-                        .card-overlay
-                            .card-meta
-                                .card-author
-                                    .avatar H
-                                    span Hugo Morales
-                                .card-actions
-                                    button.action-btn
-                                        i.bi.bi-heart
-                                    button.action-btn
-                                        i.bi.bi-bookmark
-
-                .masonry-item
-                    .card-visual(style="background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)")
-                        .card-overlay
-                            .card-meta
-                                .card-author
-                                    .avatar I
-                                    span Irina Völk
-                                .card-actions
-                                    button.action-btn
-                                        i.bi.bi-heart
-                                    button.action-btn
-                                        i.bi.bi-bookmark
-
-                .masonry-item
-                    .card-visual(style="background: linear-gradient(135deg, #f6d365 0%, #fda085 100%)")
-                        .card-overlay
-                            .card-meta
-                                .card-author
-                                    .avatar J
-                                    span Jaime Reyes
-                                .card-actions
-                                    button.action-btn
-                                        i.bi.bi-heart
-                                    button.action-btn
-                                        i.bi.bi-bookmark
-
-           
+                each c in homeCards
+                    -
+                        var grad = 'linear-gradient(' + c.g + ')';
+                        var handleH = '@' + String(c.author || '').toLowerCase().replace(/\s+/g, '') + 'photo';
+                    .masonry-item(
+                        class=c.layout
+                        role="button"
+                        tabindex="0"
+                        data-bs-toggle="modal"
+                        data-bs-target="#postModal"
+                        data-gradient=grad
+                        data-author=c.author
+                        data-initials=c.initials
+                        data-title=c.title
+                        data-category=c.cat
+                        data-likes=String(c.likes)
+                        data-liked=c.liked
+                        data-handle=handleH
+                        data-desc=c.desc
+                        data-comments=String(c.comments)
+                        data-views=String(c.views)
+                        data-tags=c.tags
+                    )
+                        .card-visual(style=`background: ${grad}`)
+                            .card-overlay
+                                .card-meta
+                                    .card-author
+                                        .avatar= c.initials.charAt(0)
+                                        span= c.author
+                                    .card-actions
+                                        button.action-btn(type="button" onclick="event.stopPropagation();")
+                                            i.bi.bi-heart
+                                        button.action-btn(type="button" onclick="event.stopPropagation();")
+                                            i.bi.bi-bookmark

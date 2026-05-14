@@ -1,0 +1,40 @@
+extends ../layout
+
+block content
+  .row
+    .col-lg-5.mb-4
+      h1.h4.mb-3 Nueva publicación
+      p.text-muted.small Subí una imagen y completá los datos. Aparecerá en Explorar.
+      form(action="/auth/subirFoto" method="POST" enctype="multipart/form-data")
+        .mb-3
+          label.form-label(for="imagen") Imagen
+          input#imagen.form-control(type="file" name="imagen" accept="image/jpeg,image/png,image/gif,image/webp" required)
+        .mb-3
+          label.form-label(for="titulo") Título
+          input#titulo.form-control(type="text" name="titulo" maxlength="255" placeholder="Ej. Atardecer en la ciudad")
+        .mb-3
+          label.form-label(for="descripcion") Descripción
+          textarea#descripcion.form-control(name="descripcion" rows="3" placeholder="Opcional")
+        .mb-3
+          label.form-label(for="etiquetas") Etiquetas
+          input#etiquetas.form-control(type="text" name="etiquetas" placeholder="Separadas por coma: fotografía, urbano")
+        .d-grid
+          button.btn.btn-primary(type="submit")
+            i.bi.bi-cloud-upload.me-2
+            | Publicar
+      p.small.text-muted.mt-3
+        a(href="/publicaciones") Ver explorar
+
+    .col-lg-7
+      h2.h5.mb-3 Publicaciones recientes
+      if fotos && fotos.length
+        .row.g-3
+          each foto in fotos
+            .col-6.col-md-4
+              .card.border-0.shadow-sm.h-100
+                - var imgUrl = foto.url && String(foto.url).startsWith('http') ? foto.url : (foto.url && String(foto.url).charAt(0) === '/' ? foto.url : '/' + (foto.url || ''))
+                img.card-img-top(src=imgUrl alt=foto.titulo style="object-fit: cover; height: 140px;")
+                .card-body.p-2
+                  p.card-text.small.text-truncate.mb-0= foto.titulo
+      else
+        p.text-muted.small Todavía no hay publicaciones en la galería global.

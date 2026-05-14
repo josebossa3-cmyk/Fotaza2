@@ -1,0 +1,102 @@
+extends ../layout
+
+block content
+  .row.mb-4
+    .col-md-8
+      .d-flex.align-items-start.gap-3
+        if usuario.foto_perfil
+          img.rounded-circle(src=usuario.foto_perfil alt="" style="width: 88px; height: 88px; object-fit: cover;")
+        else
+          .rounded-circle.bg-secondary.text-white.d-flex.align-items-center.justify-content-center(style="width: 88px; height: 88px; font-size: 2rem;")
+            = (usuario.nombre && usuario.nombre.charAt(0).toUpperCase()) || '?'
+        div
+          h1.h3.mb-1= usuario.nombre
+          p.text-muted.mb-2
+            | #{usuario.seguidores_count || 0} seguidores · #{usuario.siguiendo_count || 0} siguiendo
+          if usuario.bio
+            p.mb-2= usuario.bio
+          if currentUser && String(currentUser.id) === String(usuario.id)
+            a.btn.btn-sm.btn-outline-primary.me-2(href="/usuarios/editar") Editar perfil
+            a.btn.btn-sm.btn-outline-secondary(href="/auth/subirFoto") Subir foto
+          else if currentUser
+            button#followToggle.btn.btn-sm.btn-primary(type="button" data-siguiendo=siguiendo ? '1' : '0' data-user-id=usuario.id)
+              = siguiendo ? 'Dejar de seguir' : 'Seguir'
+
+  if currentUser && String(currentUser.id) === String(usuario.id) && guardados && guardados.length
+    h2.h5.mb-3 Guardados
+    .row.g-3.mb-5
+      each g in guardados
+        .col-6.col-md-3
+          - var u = g.ruta_archivo && String(g.ruta_archivo).startsWith('http') ? g.ruta_archivo : (g.ruta_archivo && String(g.ruta_archivo).charAt(0) === '/' ? g.ruta_archivo : '/' + (g.ruta_archivo || ''))
+          a.text-decoration-none(href="/publicaciones")
+            img.rounded.w-100(src=u alt=g.titulo style="object-fit: cover; height: 120px;")
+
+  -
+    function inicialesPerfil(nombre) {
+      var p = String(nombre || '').trim().split(/\s+/).filter(Boolean);
+      if (!p.length) return '?';
+      if (p.length === 1) return p[0].slice(0, 2).toUpperCase();
+      return (p[0].charAt(0) + p[p.length - 1].charAt(0)).toUpperCase();
+    }
+    var handlePerfil = '@' + String(usuario.nombre || 'usuario').replace(/\s+/g, '_').toLowerCase();
+    function tagsCsvPerfil(tags) {
+      if (!tags || !Array.isArray(tags)) return '';
+      return tags.map(function (t) { return String(t || '').trim(); }).filter(Boolean).join(',');
+    }
+  h2.h5.mb-3 Publicaciones
+  if publicaciones && publicaciones.length
+    .row.g-3
+      each pub in publicaciones
+        .col-6.col-md-4
+          - var pu = pub.ruta_archivo && String(pub.ruta_archivo).startsWith('http') ? pub.ruta_archivo : (pub.ruta_archivo && String(pub.ruta_archivo).charAt(0) === '/' ? pub.ruta_archivo : '/' + (pub.ruta_archivo || ''))
+          - var pubTags = tagsCsvPerfil(pub.etiquetas);
+          .card.border-0.shadow-sm.h-100(
+            role="button"
+            tabindex="0"
+            data-bs-toggle="modal"
+            data-bs-target="#postModal"
+            data-image=pu
+            data-author=usuario.nombre
+            data-initials=inicialesPerfil(usuario.nombre)
+            data-title=pub.titulo
+            data-category="Publicación"
+            data-desc=(pub.descripcion || '')
+            data-handle=handlePerfil
+            data-likes=String(pub.likes_count != null ? pub.likes_count : 0)
+            data-comments=String(pub.comentarios_count != null ? pub.comentarios_count : 0)
+            data-views="0"
+            data-tags=pubTags
+          )
+            img.card-img-top(src=pu alt=pub.titulo style="object-fit: cover; height: 180px;")
+            .card-body
+              p.card-title.small.mb-1= pub.titulo
+              p.card-text.text-muted.small.mb-0
+                i.bi.bi-heart.me-1
+                = pub.likes_count || 0
+                |
+                |
+                i.bi.bi-chat.ms-2.me-1
+                = pub.comentarios_count || 0
+  else
+    p.text-muted Este usuario aún no tiene publicaciones.
+
+  if currentUser && String(currentUser.id) !== String(usuario.id)
+    script.
+      (function () {
+        var btn = document.getElementById('followToggle');
+        if (!btn) return;
+        var userId = btn.getAttribute('data-user-id');
+        btn.addEventListener('click', function () {
+          var siguiendo = btn.getAttribute('data-siguiendo') === '1';
+          var url = '/usuarios/' + userId + (siguiendo ? '/dejar-seguir' : '/seguir');
+          fetch(url, { method: 'POST', headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (!data.success) return;
+              var now = !siguiendo;
+              btn.setAttribute('data-siguiendo', now ? '1' : '0');
+              btn.textContent = now ? 'Dejar de seguir' : 'Seguir';
+            })
+            .catch(function () {});
+        });
+      })();

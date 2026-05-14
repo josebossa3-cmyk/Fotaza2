@@ -1,0 +1,26 @@
+extends ../layout
+
+block content
+  .row.justify-content-center
+    .col-md-8.col-lg-6
+      h1.h4.mb-4 Editar perfil
+      if error
+        .alert.alert-danger= error
+      form(action="/usuarios/editar" method="POST" enctype="multipart/form-data")
+        .mb-3
+          label.form-label(for="nombre") Nombre
+          input#nombre.form-control(type="text" name="nombre" value=currentUser.nombre required maxlength="100")
+        .mb-3
+          label.form-label(for="bio") Bio
+          textarea#bio.form-control(name="bio" rows="3" maxlength="500" placeholder="Contá algo sobre vos")= currentUser.bio || ''
+        .mb-3
+          label.form-label(for="foto_perfil") Foto de perfil
+          input#foto_perfil.form-control(type="file" name="foto_perfil" accept="image/jpeg,image/png,image/gif,image/webp")
+          if currentUser.foto_perfil
+            p.small.text-muted.mt-2
+              | Foto actual:
+              |
+              img.rounded.mt-1(src=currentUser.foto_perfil alt="Foto actual" style="max-width: 120px;")
+        .d-flex.gap-2
+          button.btn.btn-primary(type="submit") Guardar
+          a.btn.btn-outline-secondary(href=`/usuarios/${currentUser.id}`) Cancelar

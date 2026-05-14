@@ -4,7 +4,6 @@ const session = require("express-session");
 const path = require("path");
 const usuarioRoutes = require("./routes/usuarios");
 const flash = require("express-flash");
-const multer = require("multer");
 
 const app = express();
 
@@ -36,32 +35,6 @@ app.use((req, res, next) => {
 
 // Después de la configuración de sesión
 app.use(flash());
-
-// Configuración de almacenamiento
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "public/uploads/perfiles/");
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (req, file, cb) => {
-    const allowedMimes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-    if (allowedMimes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error("Solo se permiten imágenes"));
-    }
-  },
-});
-
-app.use(upload.single("foto_perfil"));
 
 // Rutas
 app.use("/auth", require("./routes/auth"));

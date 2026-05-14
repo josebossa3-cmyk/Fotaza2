@@ -72,7 +72,9 @@ const IniciarSesion = async (email, contraseña) => {
             usuario: {
                 id: usuario.id,
                 nombre: usuario.nombre,
-                email: usuario.email
+                email: usuario.email,
+                foto_perfil: usuario.foto_perfil || null,
+                bio: usuario.bio || null,
             }
         };
     } catch (error) {

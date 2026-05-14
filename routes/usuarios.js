@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Usuario = require("../models/Usuario");
 const Publicacion = require("../models/Publicacion");
+const { uploadPerfil } = require("../middlewares/multerUploads");
 
 // Middleware para verificar autenticación
 const ensureAuthenticated = (req, res, next) => {
@@ -21,7 +22,11 @@ router.get("/editar", ensureAuthenticated, (req, res) => {
 });
 
 // POST para guardar los cambios
-router.post("/editar", ensureAuthenticated, async (req, res) => {
+router.post(
+  "/editar",
+  ensureAuthenticated,
+  uploadPerfil.single("foto_perfil"),
+  async (req, res) => {
   try {
     const { nombre, bio } = req.body;
     const usuarioId = req.session.user.id;
@@ -37,8 +42,7 @@ router.post("/editar", ensureAuthenticated, async (req, res) => {
       foto_perfil,
     });
 
-    // Actualizar toda la sesión con los datos nuevos
-    req.session.user = usuarioActualizado;
+    req.session.user = { ...req.session.user, ...usuarioActualizado };
     req.session.save((err) => {
       if (err) console.error(err);
       res.redirect(`/usuarios/${usuarioId}`);
@@ -51,7 +55,8 @@ router.post("/editar", ensureAuthenticated, async (req, res) => {
       error: "Error al actualizar el perfil",
     });
   }
-});
+  },
+);
 
 // Ruta para ver perfil de usuario
 router.get("/:id", ensureAuthenticated, async (req, res) => {
@@ -95,7 +100,12 @@ router.get("/:id", ensureAuthenticated, async (req, res) => {
 // Ruta para seguir usuario
 router.post("/:id/seguir", ensureAuthenticated, async (req, res) => {
   try {
-    await Usuario.seguir(req.user.id, req.params.id);
+    const seguidorId = req.session.user.id;
+    const seguidoId = parseInt(req.params.id, 10);
+    if (seguidorId === seguidoId) {
+      return res.status(400).json({ success: false, message: "No válido" });
+    }
+    await Usuario.seguir(seguidorId, seguidoId);
     res.json({ success: true });
   } catch (error) {
     console.error(error);
@@ -108,7 +118,9 @@ router.post("/:id/seguir", ensureAuthenticated, async (req, res) => {
 // Ruta para dejar de seguir
 router.post("/:id/dejar-seguir", ensureAuthenticated, async (req, res) => {
   try {
-    await Usuario.dejarSeguir(req.user.id, req.params.id);
+    const seguidorId = req.session.user.id;
+    const seguidoId = parseInt(req.params.id, 10);
+    await Usuario.dejarSeguir(seguidorId, seguidoId);
     res.json({ success: true });
   } catch (error) {
     console.error(error);

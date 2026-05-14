@@ -1,0 +1,48 @@
+//- Modal de detalle de publicación (Bootstrap 5). Los disparadores llevan data-* (ver public/js/modal.js).
+.modal.fade#postModal(tabindex="-1" aria-labelledby="modalTitle" aria-hidden="true")
+  .modal-dialog.modal-dialog-centered
+    .modal-content.vf-modal-content
+      .vf-image-panel#modalImagePanel(aria-hidden="true")
+        .img-actions
+          button.img-btn#heartBtn(type="button" title="Me gusta")
+            i.bi.bi-heart
+        #modalCategory.img-label Categoría
+
+      .vf-body-panel
+        .vf-header
+          .author-row
+            .avatar#modalInitials ?
+            .author-info
+              .author-name#modalAuthorName Autor
+              .author-handle#modalAuthorHandle @usuario
+          .header-actions
+            button.btn-follow#followBtn(type="button") Seguir
+            button.btn-close-vf(type="button" data-bs-dismiss="modal" aria-label="Cerrar")
+              i.bi.bi-x-lg
+
+        .stats-row
+          .stat#likeStat
+            i.bi.bi-heart
+            span#likesNum 0
+          .stat
+            i.bi.bi-chat
+            span#commentsCountNum 0
+          .stat
+            i.bi.bi-eye
+            span#viewsCountNum 0
+          button.btn-save#saveBtn(type="button")
+            i.bi.bi-bookmark
+            span#saveText Guardar
+
+        .vf-scroll-content
+          h2.post-title#modalTitle Título
+          p.post-desc#modalPostDesc
+          #modalTagsRow.tags-row
+          .vf-divider
+          p.comments-label Comentarios
+          #commentsList.comments-list
+
+        .vf-footer
+          input.comment-input#commentInput(type="text" placeholder="Añade un comentario..." autocomplete="off")
+          button.btn-send#sendBtn(type="button" aria-label="Enviar")
+            i.bi.bi-send-fill
