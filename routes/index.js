@@ -74,7 +74,7 @@ router.get("/", (req, res) => {
 router.get("/publicaciones", async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT p.id, p.titulo, p.descripcion, p.ruta_archivo AS url, p.etiqueta,
+      `SELECT p.id, p.titulo, p.descripcion, p.ruta_archivo AS url, p.etiquetas,
               COALESCE(u.nombre, 'Usuario') AS autor
        FROM publicaciones p
        LEFT JOIN usuarios u ON u.id = p.usuario_id

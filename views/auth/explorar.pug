@@ -1,0 +1,36 @@
+extends ../layout.pug
+
+block append extra_head
+  link(rel="stylesheet" href="/css/explorar.css")
+
+block content
+  .explore-page
+    header.explore-header
+      h1.explore-title Explorar
+      nav.explore-filters(role="navigation" aria-label="Filtros por categoría")
+        button.filter-item.active(type="button" data-filter="todo") Todo
+        button.filter-item(type="button" data-filter="diseño") Diseño
+        button.filter-item(type="button" data-filter="fotografía") Fotografía
+        button.filter-item(type="button" data-filter="arquitectura") Arquitectura
+
+    if demosPlaceholder
+    if loadError
+      p.explore-alert(role="alert") No se pudieron cargar las publicaciones. Intenta de nuevo más tarde.
+    else if publicaciones && publicaciones.length
+      main.explore-grid#exploreGrid
+        each pub in publicaciones
+          article.post-card(tabindex="0" data-id=pub.id data-etiqueta=pub.etiquetaKey)
+            .post-card__media
+              img.post-card__img(src=pub.url alt=pub.titulo loading="lazy")
+            .post-card__overlay
+              .post-card__meta
+                span.post-card__avatar(aria-hidden="true")= pub.autor.length ? pub.autor.charAt(0).toUpperCase() : "?"
+                span.post-card__author @#{pub.autor.replace(/\s+/g, "_").toLowerCase()}
+    else
+      p.explore-empty
+        | No hay publicaciones todavía. Sé el primero en
+        |
+        a(href="/auth/subirFoto") subir una foto
+        | .
+
+  script(src="/js/explorar.js" defer)

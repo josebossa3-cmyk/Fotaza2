@@ -31,6 +31,24 @@ const createTable = async () => {
       );
     `);
 
+    // Tabla publicaciones
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS publicaciones (
+        id SERIAL PRIMARY KEY,
+        titulo VARCHAR(255) NOT NULL,
+        descripcion TEXT,
+        nombre_archivo VARCHAR(255) NOT NULL,
+        ruta_archivo VARCHAR(500) NOT NULL,
+        tipo_archivo VARCHAR(50),
+        tamaño_bytes BIGINT,
+        etiquetas TEXT[],
+        licencia VARCHAR(100),
+        marca_agua BOOLEAN DEFAULT false,
+        create_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE
+      );
+    `);
+    
     // tabla guardados
 
     await client.query(`
