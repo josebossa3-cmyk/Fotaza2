@@ -465,3 +465,24 @@ body.modal-open .modal-backdrop {
     max-width: 100%;
   }
 }
+
+.btn-ver-completo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--vf-text, #1a1a2e);
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.btn-ver-completo:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--vf-text, #1a1a2e);
+}
+
+.btn-ver-completo i {
+  font-size: 1.1rem;
+}

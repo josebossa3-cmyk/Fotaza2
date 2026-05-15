@@ -147,6 +147,7 @@
     const title = card.dataset.title || "Sin título";
     const category = card.dataset.category || "Publicación";
     const desc = (card.dataset.desc || "").trim();
+    const pubId = card.dataset.id || "";
 
     const likesRaw = parseInt(card.dataset.likes, 10);
     likeCount = Number.isFinite(likesRaw) ? likesRaw : 0;
@@ -249,4 +250,14 @@
     if (e.key === "Enter") sendComment();
   });
   sendBtn.addEventListener("click", sendComment);
+
+  //btnVerCompleto
+  const btnVer = document.getElementById("btnVerCompleto");
+  if (btnVer) {
+    btnVer.href = pubId && !pubId.startsWith("demo")
+      ? `/publicaciones/${pubId}`
+      : "#";
+    btnVer.style.display = pubId && !pubId.startsWith("demo") ? "" : "none";
+  }
+
 })();

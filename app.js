@@ -26,10 +26,10 @@ app.use(
   }),
 );
 
-//Middleware del currentUser
+// Middleware del currentUser
 app.use((req, res, next) => {
-  ((res.locals.currentUser = req.session.user || null),
-    (res.locals.unreadNotifications = req.session.unreadNotifications || 0));
+  res.locals.currentUser = req.session.user || null;
+  res.locals.unreadNotifications = req.session.unreadNotifications || 0;
   next();
 });
 
@@ -48,8 +48,8 @@ app.use((req, res) => {
 
 const inicializarAPP = async () => {
   try {
-    const initDB = require("./db/initDB");
-    await initDB();
+    const { createTable } = require("./db/initDB");
+    await createTable();
     console.log("Base de datos inicializada");
 
     const PORT = process.env.PORT || 3001;

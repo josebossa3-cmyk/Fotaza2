@@ -1,0 +1,150 @@
+extends ../layout
+
+block content
+  .container.py-4
+
+    .row.g-4
+      //- Columna izquierda: imagen
+      .col-lg-8
+        .card.border-0.shadow-sm
+          img.card-img-top.rounded(
+            src=publicacion.ruta_archivo
+            alt=publicacion.titulo
+            style="max-height: 600px; object-fit: contain; background: #f8f9fa;"
+          )
+
+      //- Columna derecha: info
+      .col-lg-4
+        .d-flex.flex-column.gap-3
+
+          //- Autor
+          .d-flex.align-items-center.gap-2
+            if publicacion.autor_foto
+              img.rounded-circle(
+                src=publicacion.autor_foto
+                style="width:40px; height:40px; object-fit:cover;"
+              )
+            else
+              .rounded-circle.bg-secondary.d-flex.align-items-center.justify-content-center(
+                style="width:40px; height:40px;"
+              )
+                span.text-white.small= publicacion.autor_nombre.charAt(0).toUpperCase()
+            div
+              a.fw-semibold.text-decoration-none.text-dark(
+                href=`/usuarios/${publicacion.autor_id}`
+              )= publicacion.autor_nombre
+              p.text-muted.small.mb-0= publicacion.create_timestamp.toLocaleDateString('es-AR')
+
+          //- Título y descripción
+          div
+            h4.fw-bold= publicacion.titulo
+            if publicacion.descripcion
+              p.text-muted= publicacion.descripcion
+
+          //- Etiquetas
+          if publicacion.etiquetas && publicacion.etiquetas.length
+            .d-flex.flex-wrap.gap-1
+              each tag in publicacion.etiquetas
+                span.badge.bg-light.text-dark.border= tag
+
+          //- Licencia
+          .d-flex.align-items-center.gap-2
+            if publicacion.licencia === 'copyright'
+              span.badge.bg-warning.text-dark © Copyright
+            else
+              span.badge.bg-success Libre uso
+
+          hr
+
+          //- Valoraciones
+          .d-flex.flex-column.gap-1
+            .d-flex.align-items-center.gap-2
+              span.fw-semibold Valoración:
+              span.fs-5.text-warning
+                - for (let i = 1; i <= 5; i++)
+                  if i <= Math.round(publicacion.valoracion_promedio)
+                    | ★
+                  else
+                    | ☆
+              span.text-muted.small= `${publicacion.valoracion_promedio} (${publicacion.valoracion_cantidad} votos)`
+
+            //- Formulario de votación (solo si está logueado y no es el autor y no votó)
+            if user && user.id !== publicacion.autor_id && !yaValoro
+              .mt-1
+                p.small.text-muted.mb-1 Tu valoración:
+                .d-flex.gap-1#estrellas-form
+                  each val in [1,2,3,4,5]
+                    button.btn.btn-sm.btn-outline-warning.estrella-btn(
+                      type="button"
+                      data-valor=val
+                      data-id=publicacion.id
+                    ) ★
+            else if yaValoro
+              p.small.text-muted Ya valoraste esta publicación con #{miValoracion} ★
+
+          hr
+
+          //- Botón Me Interesa
+          if user && user.id !== publicacion.autor_id
+            button.btn.btn-primary.w-100(
+              type="button"
+              id="btn-me-interesa"
+              data-id=publicacion.id
+            )
+              | 💌 Me interesa
+
+          //- Cerrar comentarios (solo el autor)
+          if user && user.id === publicacion.autor_id
+            form(method="POST" action=`/publicaciones/${publicacion.id}/cerrar-comentarios`)
+              button.btn.btn-outline-secondary.w-100.btn-sm(type="submit")
+                if publicacion.comentarios_abiertos
+                  | Cerrar comentarios
+                else
+                  | Comentarios cerrados
+
+    //- Sección de comentarios
+    .row.mt-4
+      .col-lg-8
+
+        h5.fw-bold.mb-3 Comentarios (#{publicacion.comentarios_count})
+
+        //- Formulario nuevo comentario
+        if user && publicacion.comentarios_abiertos
+          form.mb-4(method="POST" action=`/publicaciones/${publicacion.id}/comentar`)
+            .input-group
+              input.form-control(
+                type="text"
+                name="contenido"
+                placeholder="Escribí un comentario..."
+                required
+              )
+              button.btn.btn-dark(type="submit") Enviar
+        else if !publicacion.comentarios_abiertos
+          .alert.alert-secondary.small Los comentarios están cerrados.
+        else if !user
+          .alert.alert-info.small
+            | 
+            a(href="/auth/login") Iniciá sesión
+            |  para comentar.
+
+        //- Lista de comentarios
+        if comentarios.length === 0
+          p.text-muted.small Todavía no hay comentarios.
+        else
+          each comentario in comentarios
+            .d-flex.gap-2.mb-3
+              if comentario.autor_foto
+                img.rounded-circle(
+                  src=comentario.autor_foto
+                  style="width:35px; height:35px; object-fit:cover;"
+                )
+              else
+                .rounded-circle.bg-secondary.d-flex.align-items-center.justify-content-center(
+                  style="width:35px; height:35px; flex-shrink:0;"
+                )
+                  span.text-white.small= comentario.autor_nombre.charAt(0).toUpperCase()
+              div.flex-grow-1
+                .d-flex.justify-content-between.align-items-center
+                  span.fw-semibold.small= comentario.autor_nombre
+                  span.text-muted.small= new Date(comentario.fecha).toLocaleDateString('es-AR')
+                p.mb-0.small= comentario.contenido
