@@ -1,6 +1,7 @@
 const express = require("express");
 const pool = require("../db/poolconnect");
 const router = express.Router();
+const Notificacion = require("../models/Notificacion");
 
 /** Tarjetas de ejemplo cuando aún no hay publicaciones (misma forma que las reales). */
 const EXPLORAR_DEMOS = [
@@ -106,11 +107,46 @@ router.get("/", (req, res) => {
 router.get("/publicaciones", async (req, res) => {
   try {
     const userId = req.session.user ? req.session.user.id : -1;
+    const { q, licencia, orden } = req.query;
+
+    // Construir condiciones dinámicas
+    const condiciones = ["p.estado = 'activa'"];
+    const valores = [userId];
+    let paramIndex = 2;
+
+    if (q && q.trim()) {
+      condiciones.push(
+        `(p.titulo ILIKE $${paramIndex} OR p.descripcion ILIKE $${paramIndex} OR EXISTS (
+          SELECT 1 FROM unnest(p.etiquetas) tag WHERE tag ILIKE $${paramIndex}
+        ))`
+      );
+      valores.push(`%${q.trim()}%`);
+      paramIndex++;
+    }
+
+    if (licencia && (licencia === "libre" || licencia === "copyright")) {
+      condiciones.push(`p.licencia = $${paramIndex}`);
+      valores.push(licencia);
+      paramIndex++;
+    }
+
+    // Ordenamiento
+    let orderBy = "p.create_timestamp DESC";
+    if (orden === "valoracion") {
+      orderBy = "valoracion_promedio DESC NULLS LAST, p.create_timestamp DESC";
+    } else if (orden === "comentarios") {
+      orderBy = "comentarios_count DESC, p.create_timestamp DESC";
+    }
+
+    const whereClause = condiciones.join(" AND ");
+
     const result = await pool.query(
-      `SELECT p.id, p.titulo, p.descripcion, p.ruta_archivo AS url, p.etiquetas,
+      `SELECT p.id, p.titulo, p.descripcion, p.ruta_archivo AS url, p.etiquetas, p.licencia,
               COALESCE(u.nombre, 'Usuario') AS autor,
+              u.id AS autor_id,
               COALESCE(l.likes_count, 0)::int AS likes_count,
               COALESCE(c.comentarios_count, 0)::int AS comentarios_count,
+              COALESCE(v.valoracion_promedio, 0)::numeric(3,1) AS valoracion_promedio,
               EXISTS(SELECT 1 FROM likes ul WHERE ul.publicacion_id = p.id AND ul.usuario_id = $1) AS user_liked
        FROM publicaciones p
        LEFT JOIN usuarios u ON u.id = p.usuario_id
@@ -120,10 +156,16 @@ router.get("/publicaciones", async (req, res) => {
        ) l ON l.publicacion_id = p.id
        LEFT JOIN (
          SELECT publicacion_id, COUNT(*)::int AS comentarios_count
-         FROM comentarios GROUP BY publicacion_id
+         FROM comentarios WHERE activo = true GROUP BY publicacion_id
        ) c ON c.publicacion_id = p.id
-       ORDER BY p.create_timestamp DESC`,
-       [userId]
+       LEFT JOIN (
+         SELECT publicacion_id, AVG(puntaje)::numeric(3,1) AS valoracion_promedio
+         FROM valoraciones GROUP BY publicacion_id
+       ) v ON v.publicacion_id = p.id
+       WHERE ${whereClause}
+       ORDER BY ${orderBy}
+       LIMIT 60`,
+      valores
     );
 
     const publicaciones = result.rows.map((row) => {
@@ -134,29 +176,24 @@ router.get("/publicaciones", async (req, res) => {
       } else if (tags != null) {
         first = String(tags);
       }
-      const etiquetaKey =
-        first.trim().toLowerCase() || "sin-etiqueta";
+      const etiquetaKey = first.trim().toLowerCase() || "sin-etiqueta";
       let tagsCsv = "";
       if (Array.isArray(tags) && tags.length) {
-        tagsCsv = tags
-          .map((t) => String(t || "").trim())
-          .filter(Boolean)
-          .join(",");
-      } else if (tags != null && typeof tags === "string" && tags.trim()) {
-        tagsCsv = tags
-          .split(/[,;]/)
-          .map((t) => t.trim())
-          .filter(Boolean)
-          .join(",");
+        tagsCsv = tags.map((t) => String(t || "").trim()).filter(Boolean).join(",");
       }
       return { ...row, etiquetaKey, tagsCsv };
     });
 
-    const usarDemos = publicaciones.length === 0;
+    const usarDemos = publicaciones.length === 0 && !q && !licencia && !orden;
+
     res.render("auth/explorar", {
       title: "Explorar",
       publicaciones: usarDemos ? EXPLORAR_DEMOS : publicaciones,
       demosPlaceholder: usarDemos,
+      totalResultados: publicaciones.length,
+      q: q || "",
+      licencia: licencia || "",
+      orden: orden || "reciente",
     });
   } catch (err) {
     console.error("Error al cargar publicaciones:", err);
@@ -164,6 +201,9 @@ router.get("/publicaciones", async (req, res) => {
       title: "Explorar",
       publicaciones: [],
       loadError: true,
+      q: "",
+      licencia: "",
+      orden: "reciente",
     });
   }
 });
@@ -254,7 +294,7 @@ router.post("/publicaciones/:id/comentar", async (req, res) => {
   try {
     // Verificar que los comentarios estén abiertos
     const pub = await pool.query(
-      "SELECT comentarios_abiertos FROM publicaciones WHERE id = $1",
+      "SELECT comentarios_abiertos, usuario_id FROM publicaciones WHERE id = $1",
       [id]
     );
 
@@ -264,6 +304,12 @@ router.post("/publicaciones/:id/comentar", async (req, res) => {
          VALUES ($1, $2, $3)`,
         [contenido, req.session.user.id, id]
       );
+      
+      // Notificar al autor de la publicación
+      const pubAutor = await pool.query("SELECT usuario_id FROM publicaciones WHERE id = $1", [id]);
+      if (pubAutor.rows[0]) {
+        await Notificacion.crear(pubAutor.rows[0].usuario_id, 'comentario', req.session.user.id, parseInt(id));
+      }
     }
   } catch (err) {
     console.error("Error al comentar:", err);
@@ -304,12 +350,19 @@ router.post("/publicaciones/:id/comentar_api", async (req, res) => {
   }
 
   try {
+    // Obtener autor de la publicacion para notificar
+    const pub = await pool.query("SELECT usuario_id FROM publicaciones WHERE id = $1", [id]);
+
     // Insertar comentario
     const result = await pool.query(
       `INSERT INTO comentarios (contenido, usuario_id, publicacion_id)
        VALUES ($1, $2, $3) RETURNING *`,
       [contenido.trim(), req.session.user.id, id]
     );
+
+    if (pub.rows.length > 0) {
+      await Notificacion.crear(pub.rows[0].usuario_id, 'comentario', req.session.user.id, id);
+    }
 
     res.json({
       ok: true,
@@ -355,6 +408,12 @@ router.post("/publicaciones/:id/like", async (req, res) => {
         [id, usuario_id]
       );
       liked = true;
+
+      // Notificar al autor
+      const pub = await pool.query("SELECT usuario_id FROM publicaciones WHERE id = $1", [id]);
+      if (pub.rows.length > 0) {
+        await Notificacion.crear(pub.rows[0].usuario_id, 'like', usuario_id, id);
+      }
     }
 
     // Devolvemos el total de likes actualizado
@@ -434,6 +493,12 @@ router.post("/publicaciones/:id/valorar", async (req, res) => {
       [req.session.user.id, id, puntajeNum]
     );
 
+    // Notificar al autor
+    const pubAutor = await pool.query("SELECT usuario_id FROM publicaciones WHERE id = $1", [id]);
+    if (pubAutor.rows[0]) {
+      await Notificacion.crear(pubAutor.rows[0].usuario_id, 'valoracion', req.session.user.id, parseInt(id));
+    }
+
     // Devolver nuevo promedio
     const promResult = await pool.query(
       `SELECT COALESCE(AVG(puntaje), 0)::numeric(3,1) AS promedio,
@@ -458,9 +523,93 @@ router.post("/publicaciones/:id/valorar", async (req, res) => {
 });
 
 router.get("/buscar", proximamente("Buscar"));
-router.get("/notificaciones", proximamente("Notificaciones"));
+// Ver notificaciones
+router.get("/notificaciones", async (req, res) => {
+  if (!req.session.user) return res.redirect("/auth/login");
+
+  try {
+    const notificaciones = await Notificacion.getByUsuario(req.session.user.id);
+    await Notificacion.marcarTodasLeidas(req.session.user.id);
+
+    res.render("notificaciones/index", {
+      title: "Notificaciones",
+      notificaciones,
+    });
+  } catch (err) {
+    console.error("Error al cargar notificaciones:", err);
+    res.redirect("/");
+  }
+});
+
+// Marcar una notificación como leída (AJAX)
+router.post("/notificaciones/:id/leer", async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: "No autenticado" });
+
+  try {
+    await Notificacion.marcarLeida(req.params.id, req.session.user.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Error del servidor" });
+  }
+});
 router.get("/favoritos", proximamente("Mis favoritos"));
-router.get("/seguidos", proximamente("Usuarios que sigo"));
+router.get("/seguidos", async (req, res) => {
+  if (!req.session.user) return res.redirect("/auth/login");
+
+  try {
+    const Usuario = require("../models/Usuario");
+    const userId = req.session.user.id;
+
+    // Traer publicaciones de usuarios que sigo
+    const result = await pool.query(
+      `SELECT p.id, p.titulo, p.descripcion, p.ruta_archivo AS url, p.etiquetas,
+              COALESCE(u.nombre, 'Usuario') AS autor,
+              u.id AS autor_id,
+              COALESCE(l.likes_count, 0)::int AS likes_count,
+              COALESCE(c.comentarios_count, 0)::int AS comentarios_count,
+              EXISTS(SELECT 1 FROM likes ul WHERE ul.publicacion_id = p.id AND ul.usuario_id = $1) AS user_liked
+       FROM publicaciones p
+       JOIN usuarios u ON u.id = p.usuario_id
+       JOIN seguidores s ON s.seguido_id = p.usuario_id AND s.seguidor_id = $1
+       LEFT JOIN (
+         SELECT publicacion_id, COUNT(*)::int AS likes_count
+         FROM likes GROUP BY publicacion_id
+       ) l ON l.publicacion_id = p.id
+       LEFT JOIN (
+         SELECT publicacion_id, COUNT(*)::int AS comentarios_count
+         FROM comentarios WHERE activo = true GROUP BY publicacion_id
+       ) c ON c.publicacion_id = p.id
+       WHERE p.estado = 'activa'
+       ORDER BY p.create_timestamp DESC
+       LIMIT 60`,
+      [userId]
+    );
+
+    // Traer lista de usuarios seguidos
+    const seguidos = await Usuario.getSiguiendo(userId);
+
+    const publicaciones = result.rows.map((row) => {
+      const tags = row.etiquetas;
+      const etiquetaKey = Array.isArray(tags) && tags.length
+        ? String(tags[0]).trim().toLowerCase()
+        : "sin-etiqueta";
+      const tagsCsv = Array.isArray(tags)
+        ? tags.map((t) => String(t).trim()).filter(Boolean).join(",")
+        : "";
+      return { ...row, etiquetaKey, tagsCsv };
+    });
+
+    res.render("seguidos/index", {
+      title: "Publicaciones que sigo",
+      publicaciones,
+      seguidos,
+      user: req.session.user,
+    });
+  } catch (err) {
+    console.error("Error al cargar seguidos:", err);
+    res.redirect("/");
+  }
+});
 router.get("/comunidad", proximamente("Comunidad"));
 router.get("/privacidad", proximamente("Privacidad"));
 router.get("/terminos", proximamente("Términos"));

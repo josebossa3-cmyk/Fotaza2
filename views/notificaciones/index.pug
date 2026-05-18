@@ -1,0 +1,61 @@
+extends ../layout.pug
+
+block content
+  .d-flex.align-items-center.justify-content-between.mb-4
+    h1.h4.mb-0 Notificaciones
+    if notificaciones && notificaciones.length
+      span.text-muted.small #{notificaciones.length} notificación#{notificaciones.length !== 1 ? 'es' : ''}
+
+  if !notificaciones || !notificaciones.length
+    .text-center.py-5
+      i.bi.bi-bell.display-4.text-muted.d-block.mb-3
+      p.text-muted Todavía no tenés notificaciones.
+  else
+    .list-group.list-group-flush
+      each n in notificaciones
+        -
+          var icono = 'bi-bell';
+          var mensaje = '';
+          if (n.tipo === 'comentario') {
+            icono = 'bi-chat-fill';
+            mensaje = ' comentó tu publicación';
+          } else if (n.tipo === 'valoracion') {
+            icono = 'bi-star-fill';
+            mensaje = ' valoró tu publicación';
+          } else if (n.tipo === 'me_interesa') {
+            icono = 'bi-heart-fill';
+            mensaje = ' está interesado en tu imagen';
+          } else if (n.tipo === 'nuevo_seguidor') {
+            icono = 'bi-person-plus-fill';
+            mensaje = ' comenzó a seguirte';
+          }
+
+        .list-group-item.d-flex.align-items-center.gap-3.py-3(
+          class=n.leida ? 'opacity-75' : 'fw-semibold'
+        )
+          //- Avatar del actor
+          if n.actor_foto
+            img.rounded-circle(
+              src=n.actor_foto
+              style="width:40px; height:40px; object-fit:cover; flex-shrink:0;"
+            )
+          else
+            .rounded-circle.bg-secondary.text-white.d-flex.align-items-center.justify-content-center(
+              style="width:40px; height:40px; flex-shrink:0;"
+            )= (n.actor_nombre || '?').charAt(0).toUpperCase()
+
+          //- Contenido
+          .flex-grow-1
+            span
+              a.text-decoration-none.text-dark(href=`/usuarios/${n.actor_id}`)
+                = n.actor_nombre
+              = mensaje
+            .text-muted.small.mt-1
+              = new Date(n.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+
+          //- Ícono del tipo
+          i.bi(class=icono style="font-size:1.1rem; flex-shrink:0; opacity:0.6;")
+
+          //- Indicador no leída
+          if !n.leida
+            span.rounded-circle.bg-primary.d-inline-block(style="width:8px; height:8px; flex-shrink:0;")

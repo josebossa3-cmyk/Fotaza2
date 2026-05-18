@@ -98,6 +98,14 @@ block content
               var now = !siguiendo;
               btn.setAttribute('data-siguiendo', now ? '1' : '0');
               btn.textContent = now ? 'Dejar de seguir' : 'Seguir';
+              
+              var contadorEl = document.querySelector('.text-muted.mb-2');
+              if (contadorEl) {
+                var texto = contadorEl.textContent;
+                var segActual = parseInt(texto.match(/(\d+)\s+seguidores/)?.[1] || '0');
+                var nuevoSeg = now ? segActual + 1 : Math.max(0, segActual - 1);
+                contadorEl.textContent = texto.replace(/\d+\s+seguidores/, nuevoSeg + ' seguidores');
+              }
             })
             .catch(function () {});
         });

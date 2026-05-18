@@ -27,9 +27,23 @@ app.use(
 );
 
 // Middleware del currentUser
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   res.locals.currentUser = req.session.user || null;
-  res.locals.unreadNotifications = req.session.unreadNotifications || 0;
+  res.locals.unreadNotifications = 0;
+
+  if (req.session.user) {
+    try {
+      const pool = require("./db/poolconnect");
+      const result = await pool.query(
+        "SELECT COUNT(*)::int AS count FROM notificaciones WHERE usuario_id = $1 AND leida = false",
+        [req.session.user.id]
+      );
+      res.locals.unreadNotifications = result.rows[0].count;
+    } catch (e) {
+      // Si la tabla no existe todavía no rompe nada
+    }
+  }
+
   next();
 });
 

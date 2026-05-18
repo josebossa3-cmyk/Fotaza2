@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Usuario = require("../models/Usuario");
 const Publicacion = require("../models/Publicacion");
+const Notificacion = require("../models/Notificacion");
 const { uploadPerfil } = require("../middlewares/multerUploads");
 
 // Middleware para verificar autenticación
@@ -107,6 +108,10 @@ router.post("/:id/seguir", ensureAuthenticated, async (req, res) => {
       return res.status(400).json({ success: false, message: "No válido" });
     }
     await Usuario.seguir(seguidorId, seguidoId);
+    
+    // Notificar al usuario seguido
+    await Notificacion.crear(seguidoId, 'nuevo_seguidor', seguidorId, null);
+
     res.json({ success: true });
   } catch (error) {
     console.error(error);

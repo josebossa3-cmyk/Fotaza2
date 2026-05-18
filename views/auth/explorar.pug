@@ -16,16 +16,52 @@ block content
       if (!k || k === 'sin-etiqueta') return 'Publicación';
       return k.charAt(0).toUpperCase() + k.slice(1);
     }
+
   .explore-page
+
     header.explore-header
       h1.explore-title Explorar
+
+      //- Buscador
+      form.explore-search-form(method="GET" action="/publicaciones")
+        .explore-search-bar
+          input.explore-search-input(
+            type="text"
+            name="q"
+            placeholder="Buscar por título o etiqueta..."
+            value=q || ''
+          )
+          button.explore-search-btn(type="submit")
+            i.bi.bi-search
+
+        //- Filtros
+        .explore-search-filters
+          select.explore-filter-select(name="licencia")
+            option(value="" selected=!licencia) Todas las licencias
+            option(value="libre" selected=licencia==='libre') Libre uso
+            option(value="copyright" selected=licencia==='copyright') Copyright
+
+          select.explore-filter-select(name="orden")
+            option(value="reciente" selected=orden==='reciente' || !orden) Más recientes
+            option(value="valoracion" selected=orden==='valoracion') Mejor valoradas
+            option(value="comentarios" selected=orden==='comentarios') Más comentadas
+
+          if q || licencia || orden
+            a.explore-filter-clear(href="/publicaciones") Limpiar filtros
+
+      //- Filtros por categoría (los que ya tenías)
       nav.explore-filters(role="navigation" aria-label="Filtros por categoría")
         button.filter-item.active(type="button" data-filter="todo") Todo
         button.filter-item(type="button" data-filter="diseño") Diseño
         button.filter-item(type="button" data-filter="fotografía") Fotografía
         button.filter-item(type="button" data-filter="arquitectura") Arquitectura
 
-    if demosPlaceholder
+    //- Resultado de búsqueda
+    if q
+      p.explore-search-result
+        | #{totalResultados || 0} resultado#{totalResultados !== 1 ? 's' : ''} para
+        strong  "#{q}"
+
     if loadError
       p.explore-alert(role="alert") No se pudieron cargar las publicaciones. Intenta de nuevo más tarde.
     else if publicaciones && publicaciones.length
@@ -63,9 +99,12 @@ block content
                 span.post-card__author= handlePub
     else
       p.explore-empty
-        | No hay publicaciones todavía. Sé el primero en
-        |
-        a(href="/auth/subirFoto") subir una foto
-        | .
+        if q
+          | No se encontraron publicaciones para "#{q}".
+        else
+          | No hay publicaciones todavía. Sé el primero en
+          |
+          a(href="/auth/subirFoto") subir una foto
+          | .
 
   script(src="/js/explorar.js" defer)

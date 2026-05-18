@@ -1,0 +1,79 @@
+extends ../layout.pug
+
+block content
+  -
+    function inicialesDe(nombre) {
+      var p = String(nombre || '').trim().split(/\s+/).filter(Boolean);
+      if (!p.length) return '?';
+      if (p.length === 1) return p[0].slice(0, 2).toUpperCase();
+      return (p[0].charAt(0) + p[p.length - 1].charAt(0)).toUpperCase();
+    }
+
+  .d-flex.align-items-center.justify-content-between.mb-4
+    h1.h4.mb-0 Publicaciones de usuarios que sigo
+    span.text-muted.small #{publicaciones.length} publicación#{publicaciones.length !== 1 ? 'es' : ''}
+
+  //- Lista de usuarios seguidos
+  if seguidos && seguidos.length
+    .d-flex.gap-3.mb-4.flex-wrap
+      each s in seguidos
+        a.text-decoration-none.text-center(href=`/usuarios/${s.id}`)
+          if s.foto_perfil
+            img.rounded-circle.d-block.mx-auto.mb-1(
+              src=s.foto_perfil
+              style="width:48px; height:48px; object-fit:cover;"
+            )
+          else
+            .rounded-circle.bg-secondary.text-white.d-flex.align-items-center.justify-content-center.mx-auto.mb-1(
+              style="width:48px; height:48px; font-size:1.1rem;"
+            )= inicialesDe(s.nombre)
+          span.small.text-muted= s.nombre
+
+  hr.mb-4
+
+  //- Publicaciones
+  if publicaciones && publicaciones.length
+    .row.g-3
+      each pub in publicaciones
+        -
+          var pu = pub.url && String(pub.url).startsWith('http') ? pub.url : '/' + (pub.url || '').replace(/^\//, '')
+          var handlePub = '@' + String(pub.autor || 'usuario').replace(/\s+/g, '_').toLowerCase()
+          var likesN = pub.likes_count || 0
+          var comN = pub.comentarios_count || 0
+        .col-6.col-md-4.col-lg-3
+          article.card.border-0.shadow-sm.h-100(
+            role="button"
+            tabindex="0"
+            data-bs-toggle="modal"
+            data-bs-target="#postModal"
+            data-id=pub.id
+            data-etiqueta=pub.etiquetaKey
+            data-image=pu
+            data-author=pub.autor
+            data-initials=inicialesDe(pub.autor)
+            data-title=pub.titulo
+            data-category="Publicación"
+            data-desc=(pub.descripcion || '')
+            data-handle=handlePub
+            data-likes=String(likesN)
+            data-liked=(pub.user_liked ? '1' : '')
+            data-comments=String(comN)
+            data-views="0"
+            data-tags=(pub.tagsCsv || '')
+          )
+            img.card-img-top(
+              src=pu
+              alt=pub.titulo
+              style="object-fit: cover; height: 180px;"
+              loading="lazy"
+            )
+            .card-body.py-2.px-3
+              p.small.fw-semibold.mb-0= pub.titulo
+              a.small.text-muted.text-decoration-none(href=`/usuarios/${pub.autor_id}`)= handlePub
+  else
+    .text-center.py-5
+      i.bi.bi-people.display-4.text-muted.d-block.mb-3
+      p.text-muted.mb-1 Todavía no hay publicaciones.
+      p.text-muted.small
+        | Seguí a otros usuarios para ver su contenido acá.
+      a.btn.btn-dark.btn-sm.mt-2(href="/publicaciones") Explorar publicaciones
