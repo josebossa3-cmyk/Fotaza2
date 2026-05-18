@@ -8,45 +8,41 @@ nav.navbar.navbar-expand-lg.navbar-dark.bg-dark.shadow-sm
             span.navbar-toggler-icon
         
         #navbarNav.collapse.navbar-collapse
-            ul.navbar-nav.ms-auto
-                li.nav-item
+            ul.navbar-nav.ms-auto.align-items-center
+                li.nav-item.me-3
                     a.nav-link(href="/publicaciones") Explorar
                 
                 if currentUser
-                    li.nav-item
-                        a.nav-link(href="/buscar")
-                            i.bi.bi-search
-                            span.ms-2 Buscar
+                    li.nav-item.me-3
+                        a.nav-link(href="/buscar") Buscar
                     
-                    li.nav-item
-                        a.nav-link(href="/auth/subirFoto")
-                            i.bi.bi-cloud-upload
-                            span.ms-2 Subir
+                    li.nav-item.me-3
+                        a.nav-link(href="/auth/subirFoto") Subir
+                    
+                    li.nav-item.me-4
+                        a.nav-link.text-white(href="#")
+                            i.bi.bi-envelope-fill
+                    
+                    li.nav-item.me-3
+                        a.nav-link.text-warning(href="/notificaciones")
+                            i.bi.bi-bell-fill
+                            if unreadNotifications
+                                span.ms-1 (#{unreadNotifications})
                     
                     li.nav-item.dropdown
                         a.nav-link.dropdown-toggle(href="#", role="button", data-bs-toggle="dropdown", aria-expanded="false")
-                            i.bi.bi-bell
-                            if unreadNotifications
-                                span.badge.bg-danger.ms-2= unreadNotifications
-                        ul.dropdown-menu.dropdown-menu-end
+                            | [Avatar]
+                        ul.dropdown-menu.dropdown-menu-end.dropdown-menu-dark
                             li
-                                a.dropdown-item(href="/notificaciones") Ver todas
+                                a.dropdown-item(href=`/usuarios/${currentUser.id}`) Mi perfil
                             li
-                                hr.dropdown-divider
-                            li
-                                a.dropdown-item(href=`/usuarios/${currentUser.id}`)
-                                    i.bi.bi-person.me-2
-                                    | Mi perfil
-                            li
-                                a.dropdown-item(href="/favoritos") Mis favoritos
+                                a.dropdown-item(href="/favoritos") Mis colecciones
                             li
                                 a.dropdown-item(href="/seguidos") Usuarios que sigo
                             li
                                 hr.dropdown-divider
                             li
-                                a.dropdown-item(href="/auth/logout")
-                                    i.bi.bi-box-arrow-right
-                                    span.ms-2 Cerrar sesión
+                                a.dropdown-item(href="/auth/logout") Cerrar sesión
                 else
                     li.nav-item
                         a.nav-link(href="/auth/login") Iniciar sesión

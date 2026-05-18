@@ -50,6 +50,7 @@ block content
             data-desc=(pub.descripcion || '')
             data-handle=handlePub
             data-likes=String(likesN)
+            data-liked=(pub.user_liked ? '1' : '')
             data-comments=String(comN)
             data-views="0"
             data-tags=(pub.tagsCsv || '')

@@ -68,7 +68,8 @@ router.get("/:id", ensureAuthenticated, async (req, res) => {
     }
 
     // Obtener publicaciones del usuario
-    const publicaciones = await Publicacion.findByUsuario(usuario.id);
+    const currentUserId = req.session.user ? req.session.user.id : -1;
+    const publicaciones = await Publicacion.findByUsuario(usuario.id, currentUserId);
 
     // Verificar si el usuario actual sigue a este usuario
     let siguiendo = false;

@@ -2,11 +2,12 @@ const pool = require("../db/poolconnect");
 
 class Publicacion {
   // Obtener publicaciones de un usuario
-  static async findByUsuario(usuario_id, limit = 20, offset = 0) {
+  static async findByUsuario(usuario_id, current_user_id = -1, limit = 20, offset = 0) {
     const result = await pool.query(
       `SELECT p.*,
       COALESCE(l.likes_count, 0) as likes_count,
-      COALESCE(c.comentarios_count, 0) as comentarios_count
+      COALESCE(c.comentarios_count, 0) as comentarios_count,
+      EXISTS(SELECT 1 FROM likes ul WHERE ul.publicacion_id = p.id AND ul.usuario_id = $2) AS user_liked
     FROM publicaciones p
     LEFT JOIN (
       SELECT publicacion_id, COUNT(*) as likes_count
@@ -20,8 +21,8 @@ class Publicacion {
     ) c ON c.publicacion_id = p.id
     WHERE p.usuario_id = $1
     ORDER BY p.create_timestamp DESC
-    LIMIT $2 OFFSET $3`,
-      [usuario_id, limit, offset],
+    LIMIT $3 OFFSET $4`,
+      [usuario_id, current_user_id, limit, offset],
     );
     return result.rows;
   }

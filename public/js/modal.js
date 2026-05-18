@@ -51,6 +51,7 @@
   let following = false;
   let saved = false;
   let likeCount = 0;
+  let currentPubId = null;
 
   function handleFromAuthor(name) {
     const slug = String(name || "usuario")
@@ -148,6 +149,7 @@
     const category = card.dataset.category || "Publicación";
     const desc = (card.dataset.desc || "").trim();
     const pubId = card.dataset.id || "";
+    currentPubId = pubId;
 
     const likesRaw = parseInt(card.dataset.likes, 10);
     likeCount = Number.isFinite(likesRaw) ? likesRaw : 0;
@@ -179,25 +181,97 @@
     syncFollowUI();
     syncSaveUI();
 
-    commentsList.querySelectorAll(".comment-item.new-comment").forEach((el) => el.remove());
     commentInput.value = "";
+    commentsList.innerHTML = '<div class="text-center my-3"><span class="spinner-border spinner-border-sm text-secondary" role="status"></span></div>';
+    
+    if (pubId && !pubId.startsWith("demo")) {
+      fetch(`/publicaciones/${pubId}/comentarios_api`)
+        .then(res => res.json())
+        .then(data => {
+           if (data.ok) {
+             commentsList.innerHTML = '';
+             if (data.comentarios.length === 0) {
+               commentsList.innerHTML = '<p class="text-muted small text-center my-3">Aún no hay comentarios.</p>';
+             } else {
+               data.comentarios.forEach(c => {
+                  const bg = "linear-gradient(135deg,var(--vf-accent, #e2c98a),#c07adb)";
+                  const avatarText = c.autor_nombre ? c.autor_nombre.substring(0, 2).toUpperCase() : 'US';
+                  const item = document.createElement("div");
+                  item.className = "comment-item";
+                  item.innerHTML =
+                    '<div class="comment-avatar" style="background:' + escapeHTML(bg) + '">' +
+                    escapeHTML(avatarText) + '</div>' +
+                    '<div class="comment-bubble">' +
+                    '<div class="comment-author">' + escapeHTML(c.autor_nombre || 'Usuario') + '</div>' +
+                    '<div class="comment-text">' + escapeHTML(c.contenido) + '</div></div>';
+                  commentsList.appendChild(item);
+               });
+             }
+           } else {
+             commentsList.innerHTML = '<p class="text-danger small">Error al cargar comentarios.</p>';
+           }
+        })
+        .catch(err => {
+           console.error("Fetch error:", err);
+           commentsList.innerHTML = '<p class="text-danger small">Error al cargar comentarios.</p>';
+        });
+    } else {
+       commentsList.innerHTML = '<p class="text-muted small text-center my-3">Aún no hay comentarios.</p>';
+    }
+
+    //btnVerCompleto
+    const btnVer = document.getElementById("btnVerCompleto");
+    if (btnVer) {
+      btnVer.href = pubId && !pubId.startsWith("demo")
+        ? `/publicaciones/${pubId}`
+        : "#";
+      btnVer.style.display = pubId && !pubId.startsWith("demo") ? "" : "none";
+    }
   });
+
+  async function toggleLike() {
+    if (!currentPubId) return;
+
+    try {
+      const res = await fetch(`/publicaciones/${currentPubId}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) {
+          liked = data.liked;
+          likeCount = data.likes_count;
+          likesNumEl.textContent = formatInt(likeCount);
+          syncHeartUI();
+          
+          // update the card attributes so it remembers state
+          const card = document.querySelector(`.post-card[data-id="${currentPubId}"]`) || document.querySelector(`.masonry-item[data-id="${currentPubId}"]`);
+          if (card) {
+             card.dataset.liked = liked ? '1' : '';
+             card.dataset.likes = String(likeCount);
+          }
+        } else {
+          console.error(data.error);
+        }
+      } else {
+         if (res.status === 401) {
+            alert('Debes iniciar sesión para dar me gusta');
+            window.location.href = '/auth/login';
+         }
+      }
+    } catch (e) {
+      console.error('Error al dar like:', e);
+    }
+  }
 
   heartBtn.addEventListener("click", (ev) => {
     ev.stopPropagation();
-    liked = !liked;
-    likeCount += liked ? 1 : -1;
-    if (likeCount < 0) likeCount = 0;
-    likesNumEl.textContent = formatInt(likeCount);
-    syncHeartUI();
+    toggleLike();
   });
 
   likeStat.addEventListener("click", () => {
-    liked = !liked;
-    likeCount += liked ? 1 : -1;
-    if (likeCount < 0) likeCount = 0;
-    likesNumEl.textContent = formatInt(likeCount);
-    syncHeartUI();
+    toggleLike();
   });
 
   followBtn.addEventListener("click", () => {
@@ -222,42 +296,56 @@
     );
   }
 
-  function sendComment() {
+  async function sendComment() {
     const text = commentInput.value.trim();
-    if (!text) return;
+    if (!text || !currentPubId) return;
 
-    const bg =
-      panel.style.background ||
-      "linear-gradient(135deg,var(--vf-accent, #e2c98a),#c07adb)";
-    const item = document.createElement("div");
-    item.className = "comment-item new-comment";
-    item.innerHTML =
-      '<div class="comment-avatar" style="background:' +
-      escapeHTML(bg) +
-      '">Tú</div>' +
-      '<div class="comment-bubble">' +
-      '<div class="comment-author">Tú</div>' +
-      '<div class="comment-text">' +
-      escapeHTML(text) +
-      "</div></div>";
+    try {
+      const res = await fetch(`/publicaciones/${currentPubId}/comentar_api`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contenido: text })
+      });
 
-    commentsList.appendChild(item);
-    commentInput.value = "";
-    item.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) {
+          const bg = panel.style.background || "linear-gradient(135deg,var(--vf-accent, #e2c98a),#c07adb)";
+          const item = document.createElement("div");
+          item.className = "comment-item new-comment";
+          
+          const avatarText = data.comentario.autor ? data.comentario.autor.substring(0, 2).toUpperCase() : 'TU';
+          
+          item.innerHTML =
+            '<div class="comment-avatar" style="background:' + escapeHTML(bg) + '">' +
+            escapeHTML(avatarText) + '</div>' +
+            '<div class="comment-bubble">' +
+            '<div class="comment-author">' + escapeHTML(data.comentario.autor) + '</div>' +
+            '<div class="comment-text">' + escapeHTML(data.comentario.contenido) + '</div></div>';
+
+          commentsList.appendChild(item);
+          commentInput.value = "";
+          item.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          
+          // update card comments count
+          const card = document.querySelector(`.post-card[data-id="${currentPubId}"]`) || document.querySelector(`.masonry-item[data-id="${currentPubId}"]`);
+          if (card) {
+             const currentComments = parseInt(card.dataset.comments || "0", 10);
+             card.dataset.comments = String(currentComments + 1);
+             commentsCountEl.textContent = formatInt(currentComments + 1);
+          }
+        }
+      } else if (res.status === 401) {
+         alert('Debes iniciar sesión para comentar');
+         window.location.href = '/auth/login';
+      }
+    } catch (e) {
+      console.error('Error al comentar:', e);
+    }
   }
 
   commentInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") sendComment();
   });
   sendBtn.addEventListener("click", sendComment);
-
-  //btnVerCompleto
-  const btnVer = document.getElementById("btnVerCompleto");
-  if (btnVer) {
-    btnVer.href = pubId && !pubId.startsWith("demo")
-      ? `/publicaciones/${pubId}`
-      : "#";
-    btnVer.style.display = pubId && !pubId.startsWith("demo") ? "" : "none";
-  }
-
 })();

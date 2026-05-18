@@ -55,6 +55,7 @@ block content
             tabindex="0"
             data-bs-toggle="modal"
             data-bs-target="#postModal"
+            data-id=pub.id
             data-image=pu
             data-author=usuario.nombre
             data-initials=inicialesPerfil(usuario.nombre)
@@ -63,6 +64,7 @@ block content
             data-desc=(pub.descripcion || '')
             data-handle=handlePerfil
             data-likes=String(pub.likes_count != null ? pub.likes_count : 0)
+            data-liked=(pub.user_liked ? '1' : '')
             data-comments=String(pub.comentarios_count != null ? pub.comentarios_count : 0)
             data-views="0"
             data-tags=pubTags

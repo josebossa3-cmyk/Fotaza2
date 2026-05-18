@@ -105,11 +105,13 @@ router.get("/", (req, res) => {
 // Explorar (publicaciones)
 router.get("/publicaciones", async (req, res) => {
   try {
+    const userId = req.session.user ? req.session.user.id : -1;
     const result = await pool.query(
       `SELECT p.id, p.titulo, p.descripcion, p.ruta_archivo AS url, p.etiquetas,
               COALESCE(u.nombre, 'Usuario') AS autor,
               COALESCE(l.likes_count, 0)::int AS likes_count,
-              COALESCE(c.comentarios_count, 0)::int AS comentarios_count
+              COALESCE(c.comentarios_count, 0)::int AS comentarios_count,
+              EXISTS(SELECT 1 FROM likes ul WHERE ul.publicacion_id = p.id AND ul.usuario_id = $1) AS user_liked
        FROM publicaciones p
        LEFT JOIN usuarios u ON u.id = p.usuario_id
        LEFT JOIN (
@@ -120,7 +122,8 @@ router.get("/publicaciones", async (req, res) => {
          SELECT publicacion_id, COUNT(*)::int AS comentarios_count
          FROM comentarios GROUP BY publicacion_id
        ) c ON c.publicacion_id = p.id
-       ORDER BY p.create_timestamp DESC`
+       ORDER BY p.create_timestamp DESC`,
+       [userId]
     );
 
     const publicaciones = result.rows.map((row) => {
@@ -267,6 +270,109 @@ router.post("/publicaciones/:id/comentar", async (req, res) => {
   }
 
   res.redirect(`/publicaciones/${id}`);
+});
+
+// Obtener comentarios de publicación (API JSON)
+router.get("/publicaciones/:id/comentarios_api", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const comentariosResult = await pool.query(
+      `SELECT c.*, u.nombre AS autor_nombre, u.foto_perfil AS autor_foto
+       FROM comentarios c
+       LEFT JOIN usuarios u ON u.id = c.usuario_id
+       WHERE c.publicacion_id = $1 AND c.activo = true
+       ORDER BY c.fecha ASC`,
+      [id]
+    );
+    res.json({ ok: true, comentarios: comentariosResult.rows });
+  } catch (err) {
+    console.error("Error al obtener comentarios:", err);
+    res.status(500).json({ error: "Error del servidor" });
+  }
+});
+
+// Comentar publicación desde modal (API JSON)
+router.post("/publicaciones/:id/comentar_api", async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ error: "No autenticado" });
+  }
+
+  const { id } = req.params;
+  const { contenido } = req.body;
+  if (!contenido || !contenido.trim()) {
+    return res.status(400).json({ error: "Comentario vacío" });
+  }
+
+  try {
+    // Insertar comentario
+    const result = await pool.query(
+      `INSERT INTO comentarios (contenido, usuario_id, publicacion_id)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [contenido.trim(), req.session.user.id, id]
+    );
+
+    res.json({
+      ok: true,
+      comentario: {
+        id: result.rows[0].id,
+        contenido: result.rows[0].contenido,
+        autor: req.session.user.nombre || 'Tú'
+      }
+    });
+  } catch (err) {
+    console.error("Error al comentar API:", err);
+    res.status(500).json({ error: "Error del servidor" });
+  }
+});
+
+// Dar Like / Quitar Like a publicación (API JSON)
+router.post("/publicaciones/:id/like", async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ error: "No autenticado" });
+  }
+
+  const { id } = req.params;
+  const usuario_id = req.session.user.id;
+
+  try {
+    // Verificamos si ya dio like
+    const result = await pool.query(
+      "SELECT 1 FROM likes WHERE publicacion_id = $1 AND usuario_id = $2",
+      [id, usuario_id]
+    );
+
+    let liked = false;
+    if (result.rows.length > 0) {
+      // Ya tiene like, lo quitamos
+      await pool.query(
+        "DELETE FROM likes WHERE publicacion_id = $1 AND usuario_id = $2",
+        [id, usuario_id]
+      );
+    } else {
+      // No tiene like, lo insertamos
+      await pool.query(
+        "INSERT INTO likes (publicacion_id, usuario_id) VALUES ($1, $2)",
+        [id, usuario_id]
+      );
+      liked = true;
+    }
+
+    // Devolvemos el total de likes actualizado
+    const countResult = await pool.query(
+      "SELECT COUNT(*)::int AS likes_count FROM likes WHERE publicacion_id = $1",
+      [id]
+    );
+
+    res.json({
+      ok: true,
+      liked: liked,
+      likes_count: countResult.rows[0].likes_count
+    });
+
+  } catch (err) {
+    console.error("Error al dar like:", err);
+    res.status(500).json({ error: "Error del servidor" });
+  }
 });
 
 // Cerrar comentarios (solo el autor)
