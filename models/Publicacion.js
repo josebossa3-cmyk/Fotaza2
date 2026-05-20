@@ -40,6 +40,32 @@ class Publicacion {
     return result.rows;
   }
 
+  // Obtener publicaciones de todos los usuarios ordenadas por fecha (feed)
+  static async getAll(current_user_id = -1, limit = 20, offset = 0) {
+    const result = await pool.query(
+      `SELECT p.*,
+      COALESCE(l.likes_count, 0) as likes_count,
+      COALESCE(c.comentarios_count, 0) as comentarios_count,
+      EXISTS(SELECT 1 FROM likes ul WHERE ul.publicacion_id = p.id AND ul.usuario_id = $1) AS user_liked,
+      EXISTS(SELECT 1 FROM guardados ug WHERE ug.publicacion_id = p.id AND ug.usuario_id = $1) AS user_saved
+    FROM publicaciones p
+    LEFT JOIN (
+      SELECT publicacion_id, COUNT(*) as likes_count
+      FROM likes
+      GROUP BY publicacion_id
+    ) l ON l.publicacion_id = p.id
+    LEFT JOIN (
+      SELECT publicacion_id, COUNT(*) as comentarios_count
+      FROM comentarios
+      GROUP BY publicacion_id
+    ) c ON c.publicacion_id = p.id
+    ORDER BY p.create_timestamp DESC
+    LIMIT $2 OFFSET $3`,
+      [current_user_id, limit, offset],
+    );
+    return result.rows;
+  }
+
   // Guardar publicación
   static async guardarPublicacion(usuario_id, publicacion_id) {
     try {

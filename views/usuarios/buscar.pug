@@ -1,0 +1,44 @@
+extends ../layout
+
+block content
+  .container.mt-4
+    .row.justify-content-center
+      .col-md-8
+        h2.mb-4.text-center Buscador de Usuarios
+        
+        // Formulario de Búsqueda
+        .card.shadow-sm.mb-4.border-0.bg-dark.text-white
+          .card-body
+            form(action="/buscar", method="GET")
+              .input-group.input-group-lg
+                input.form-control.bg-dark.text-white.border-secondary(type="text", name="q", placeholder="Buscar por nombre de usuario...", value=query, aria-label="Buscar usuario", autofocus)
+                button.btn.btn-primary(type="submit")
+                  i.bi.bi-search
+                  |  Buscar
+
+        // Resultados
+        if query
+          if usuarios && usuarios.length > 0
+            h4.mb-3 Resultados para "#{query}"
+            .row.g-3
+              each u in usuarios
+                .col-md-6.col-lg-4
+                  .card.h-100.shadow-sm.border-0.bg-dark.text-white
+                    .card-body.text-center
+                      if u.foto_perfil
+                        img.rounded-circle.mb-3(src=u.foto_perfil, alt=u.nombre, style="width: 80px; height: 80px; object-fit: cover; border: 2px solid #0d6efd;")
+                      else
+                        .rounded-circle.bg-secondary.d-inline-flex.align-items-center.justify-content-center.mb-3(style="width: 80px; height: 80px; font-size: 2rem;")
+                          i.bi.bi-person-fill
+                      
+                      h5.card-title.mb-1= u.nombre
+                      p.card-text.text-muted.small.mb-3= u.bio ? (u.bio.length > 50 ? u.bio.substring(0, 50) + '...' : u.bio) : 'Sin biografía'
+                      
+                      a.btn.btn-outline-primary.btn-sm.w-100(href=`/usuarios/${u.id}`)
+                        | Ver Perfil
+          else
+            .alert.alert-info.text-center No se encontraron usuarios con el nombre "#{query}".
+        else
+          .text-center.text-muted.mt-5
+            i.bi.bi-people(style="font-size: 4rem; opacity: 0.5;")
+            p.mt-3 Ingresa un nombre para buscar a otros fotógrafos en la comunidad.

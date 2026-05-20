@@ -3,6 +3,7 @@ const router = express.Router();
 const publicacionController = require("../controllers/publicacionController");
 const notificacionController = require("../controllers/notificacionController");
 const seguidosController = require("../controllers/seguidosController");
+const usuarioController = require("../controllers/usuarioController");
 
 // Ruta principal
 router.get("/", (req, res) => {
@@ -36,8 +37,10 @@ router.post("/notificaciones/:id/leer", notificacionController.marcarLeida);
 // Seguidos
 router.get("/seguidos", seguidosController.verSeguidos);
 
+// Buscador
+router.get("/buscar", usuarioController.buscarUsuarios);
+
 // Placeholders
-router.get("/buscar", proximamente("Buscar"));
 router.get("/favoritos", proximamente("Mis favoritos"));
 router.get("/comunidad", proximamente("Comunidad"));
 router.get("/privacidad", proximamente("Privacidad"));

@@ -32,13 +32,22 @@ class Usuario {
     return result.rows[0];
   }
 
-  // Buscar usuario por nombre
+  // Buscar usuario por nombre (exacto)
   static async findByNombre(nombre) {
     const result = await pool.query(
       "SELECT * FROM usuarios WHERE nombre = $1",
       [nombre],
     );
     return result.rows[0];
+  }
+
+  // Buscar usuarios (búsqueda parcial)
+  static async search(query) {
+    const result = await pool.query(
+      "SELECT id, nombre, foto_perfil, bio FROM usuarios WHERE nombre ILIKE $1",
+      [`%${query}%`]
+    );
+    return result.rows;
   }
 
   // Crear usuario

@@ -113,3 +113,28 @@ exports.dejarSeguir = async (req, res) => {
       .json({ success: false, message: "Error al dejar de seguir" });
   }
 };
+
+exports.buscarUsuarios = async (req, res) => {
+  try {
+    const query = req.query.q || '';
+    let usuarios = [];
+    if (query) {
+      usuarios = await Usuario.search(query);
+    }
+    res.render("usuarios/buscar", {
+      title: "Buscar Usuarios",
+      query,
+      usuarios,
+      currentUser: req.session.user,
+    });
+  } catch (error) {
+    console.error(error);
+    res.render("usuarios/buscar", {
+      title: "Buscar Usuarios",
+      query: req.query.q || '',
+      usuarios: [],
+      error: "Error al buscar usuarios",
+      currentUser: req.session.user,
+    });
+  }
+};
