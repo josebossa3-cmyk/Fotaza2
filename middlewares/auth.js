@@ -1,5 +1,4 @@
-const session = require('express-session');
-const pool = require('../db/poolconnect');
+const { Sesion, Usuario } = require("../models");
 
 const verificarToken = async (req, res, next) => {
     try {
@@ -12,30 +11,20 @@ const verificarToken = async (req, res, next) => {
             });
         }
 
-        const resultado = await pool.query(
-            `SELECT u.id, u.nombre, u.email, s.fecha_expiracion
-            FROM sesiones s
-            JOIN usuarios u ON s.usuario_id = u.id
-            WHERE s.token = $1 AND s.activa = true`,
-            [token]
-        );
+        const sesion = await Sesion.findOne({
+            where: { token, activa: true },
+            include: [{ model: Usuario }]
+        });
 
-        if (resultado.rows.length === 0) {
+        if (!sesion) {
             return res.status(401).json({
                 success: false,
                 message: 'Token invalido'
             });
         }
 
-        const sesion = resultado.rows[0];
-
-        // verificar fechaExpiracion
-
         if (new Date(sesion.fecha_expiracion) < new Date()) {
-            await pool.query(
-                'UPDATE sesiones SET activa = false WHERE token = $1',
-                [token]
-            );
+            await Sesion.update({ activa: false }, { where: { token } });
 
             return res.status(401).json({
                 success: false,
@@ -44,9 +33,9 @@ const verificarToken = async (req, res, next) => {
         }
 
         req.usuario = {
-            id: sesion.id,
-            nombre: sesion.nombre,
-            email: sesion.email
+            id: sesion.Usuario.id,
+            nombre: sesion.Usuario.nombre,
+            email: sesion.Usuario.email
         };
 
         next();

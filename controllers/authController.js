@@ -1,7 +1,6 @@
 const IniciarSesion = require("../db/iniciarSesion");
 const { crearUsuario } = require("../db/crearUsuario");
-const Publicacion = require("../models/Publicacion");
-const pool = require("../db/poolconnect");
+const { Publicacion, Sesion } = require("../models");
 
 function parseEtiquetas(str) {
   if (!str || typeof str !== "string") return null;
@@ -133,9 +132,7 @@ exports.getLogout = (req, res) => {
 exports.postLogout = async (req, res) => {
   try {
     if (req.session.token) {
-      await pool.query("UPDATE sesiones SET activa = false WHERE token = $1", [
-        req.session.token,
-      ]);
+      await Sesion.update({ activa: false }, { where: { token: req.session.token } });
     }
   } catch (error) {
     console.error("Error al desactivar sesión:", error);
@@ -153,12 +150,15 @@ exports.postLogout = async (req, res) => {
 
 exports.getSubirFoto = async (req, res) => {
   try {
-    const result = await pool.query(
-      "SELECT id, titulo, descripcion, ruta_archivo AS url, create_timestamp FROM publicaciones ORDER BY create_timestamp DESC LIMIT 24"
-    );
+    const fotos = await Publicacion.findAll({
+      attributes: ['id', 'titulo', 'descripcion', ['ruta_archivo', 'url'], 'create_timestamp'],
+      order: [['create_timestamp', 'DESC']],
+      limit: 24,
+      raw: true
+    });
 
     res.render("auth/subirFoto", {
-      fotos: result.rows,
+      fotos,
       title: "Subir Foto",
       currentUser: req.session.user,
     });

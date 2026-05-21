@@ -1,32 +1,29 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
-const Notificacion = sequelize.define(
-  "Notificacion",
+const Comentario = sequelize.define(
+  "Comentario",
   {
     id: {
       type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true,
     },
-    tipo: {
-      type: DataTypes.STRING(30),
+    contenido: {
+      type: DataTypes.TEXT,
       allowNull: false,
     },
-    referencia_id: {
-      type: DataTypes.INTEGER,
-    },
-    leida: {
+    activo: {
       type: DataTypes.BOOLEAN,
-      defaultValue: false,
+      defaultValue: true,
     },
   },
   {
-    tableName: "notificaciones",
+    tableName: "comentarios",
     timestamps: true,
     createdAt: "fecha",
     updatedAt: false,
   }
 );
 
-module.exports = Notificacion;
+module.exports = Comentario;

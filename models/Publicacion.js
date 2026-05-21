@@ -1,118 +1,65 @@
-const pool = require("../db/poolconnect");
+const { DataTypes } = require("sequelize");
+const sequelize = require("../config/database");
 
-class Publicacion {
-  // Obtener publicaciones de un usuario
-  static async findByUsuario(usuario_id, current_user_id = -1, limit = 20, offset = 0) {
-    const result = await pool.query(
-      `SELECT p.*,
-      COALESCE(l.likes_count, 0) as likes_count,
-      COALESCE(c.comentarios_count, 0) as comentarios_count,
-      EXISTS(SELECT 1 FROM likes ul WHERE ul.publicacion_id = p.id AND ul.usuario_id = $2) AS user_liked
-    FROM publicaciones p
-    LEFT JOIN (
-      SELECT publicacion_id, COUNT(*) as likes_count
-      FROM likes
-      GROUP BY publicacion_id
-    ) l ON l.publicacion_id = p.id
-    LEFT JOIN (
-      SELECT publicacion_id, COUNT(*) as comentarios_count
-      FROM comentarios
-      GROUP BY publicacion_id
-    ) c ON c.publicacion_id = p.id
-    WHERE p.usuario_id = $1
-    ORDER BY p.create_timestamp DESC
-    LIMIT $3 OFFSET $4`,
-      [usuario_id, current_user_id, limit, offset],
-    );
-    return result.rows;
+const Publicacion = sequelize.define(
+  "Publicacion",
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    titulo: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
+    descripcion: {
+      type: DataTypes.TEXT,
+    },
+    nombre_archivo: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
+    ruta_archivo: {
+      type: DataTypes.STRING(500),
+      allowNull: false,
+    },
+    tipo_archivo: {
+      type: DataTypes.STRING(50),
+    },
+    tamaño_bytes: {
+      type: DataTypes.BIGINT,
+    },
+    etiquetas: {
+      type: DataTypes.ARRAY(DataTypes.TEXT),
+    },
+    licencia: {
+      type: DataTypes.STRING(20),
+      defaultValue: "libre",
+    },
+    marca_agua: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    texto_marca: {
+      type: DataTypes.STRING(100),
+    },
+    estado: {
+      type: DataTypes.STRING(20),
+      defaultValue: "activa",
+    },
+    comentarios_abiertos: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+    },
+    // usuario_id será agregado por las asociaciones en index.js
+  },
+  {
+    tableName: "publicaciones",
+    timestamps: true,
+    createdAt: "create_timestamp",
+    updatedAt: false,
   }
-
-  // Obtener publicaciones guardadas de un usuario
-  static async getGuardados(usuario_id) {
-    const result = await pool.query(
-      `SELECT p.*
-      FROM guardados g
-      JOIN publicaciones p ON p.id = g.publicacion_id
-      WHERE g.usuario_id = $1
-      ORDER BY g.fecha DESC`,
-      [usuario_id],
-    );
-    return result.rows;
-  }
-
-  // Obtener publicaciones de todos los usuarios ordenadas por fecha (feed)
-  static async getAll(current_user_id = -1, limit = 20, offset = 0) {
-    const result = await pool.query(
-      `SELECT p.*,
-      COALESCE(l.likes_count, 0) as likes_count,
-      COALESCE(c.comentarios_count, 0) as comentarios_count,
-      EXISTS(SELECT 1 FROM likes ul WHERE ul.publicacion_id = p.id AND ul.usuario_id = $1) AS user_liked,
-      EXISTS(SELECT 1 FROM guardados ug WHERE ug.publicacion_id = p.id AND ug.usuario_id = $1) AS user_saved
-    FROM publicaciones p
-    LEFT JOIN (
-      SELECT publicacion_id, COUNT(*) as likes_count
-      FROM likes
-      GROUP BY publicacion_id
-    ) l ON l.publicacion_id = p.id
-    LEFT JOIN (
-      SELECT publicacion_id, COUNT(*) as comentarios_count
-      FROM comentarios
-      GROUP BY publicacion_id
-    ) c ON c.publicacion_id = p.id
-    ORDER BY p.create_timestamp DESC
-    LIMIT $2 OFFSET $3`,
-      [current_user_id, limit, offset],
-    );
-    return result.rows;
-  }
-
-  // Guardar publicación
-  static async guardarPublicacion(usuario_id, publicacion_id) {
-    try {
-      await pool.query(
-        "INSERT INTO guardados (usuario_id, publicacion_id) VALUES ($1, $2)",
-        [usuario_id, publicacion_id],
-      );
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }
-
-  // Crear publicación
-  static async create(publicacion) {
-    const {
-      titulo,
-      descripcion,
-      nombre_archivo,
-      ruta_archivo,
-      tipo_archivo,
-      tamaño_bytes,
-      etiquetas,
-      licencia,
-      marca_agua,
-      usuario_id,
-    } = publicacion;
-    const result = await pool.query(
-      `INSERT INTO publicaciones 
-        (titulo, descripcion, nombre_archivo, ruta_archivo, tipo_archivo, tamaño_bytes, etiquetas, licencia, marca_agua, usuario_id) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
-       RETURNING *`,
-      [
-        titulo,
-        descripcion,
-        nombre_archivo,
-        ruta_archivo,
-        tipo_archivo,
-        tamaño_bytes,
-        etiquetas,
-        licencia,
-        marca_agua,
-        usuario_id,
-      ],
-    );
-    return result.rows[0];
-  }
-}
+);
 
 module.exports = Publicacion;

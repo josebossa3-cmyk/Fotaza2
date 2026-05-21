@@ -1,7 +1,5 @@
-const pool = require("./poolconnect");
+const { Usuario } = require("../models");
 const bcrypt = require("bcryptjs");
-
-// Función para crear una nueva cuenta de usuario
 
 const crearUsuario = async (nombre, email, contraseña) => {
   if (!nombre || !email || !contraseña) {
@@ -14,33 +12,28 @@ const crearUsuario = async (nombre, email, contraseña) => {
   }
 
   try {
-    // acá reviso si el mail ya existe
-    const emailExistente = await pool.query(
-      "SELECT * FROM usuarios WHERE email = $1",
-      [email],
-    );
+    const emailExistente = await Usuario.findOne({ where: { email } });
 
-    if (emailExistente.rows.length > 0) {
+    if (emailExistente) {
       throw new Error("El email ya está registrado");
     }
 
-    // hasheamos la contra
     const hashedPassword = await bcrypt.hash(contraseña, 10);
 
-    const resultado = await pool.query(
-      "INSERT INTO usuarios (nombre, email, contraseña) VALUES ($1,$2,$3) RETURNING *",
-      [nombre, email, hashedPassword],
-    );
+    const nuevoUsuario = await Usuario.create({
+      nombre,
+      email,
+      contraseña: hashedPassword,
+    });
 
     return {
       success: true,
       message: "Usuario creado",
-      usuario: resultado.rows[0],
+      usuario: nuevoUsuario,
     };
   } catch (error) {
     throw error;
   }
 };
 
-// Exportar las funciones para su uso en otras partes
 module.exports = { crearUsuario };

@@ -33,12 +33,11 @@ app.use(async (req, res, next) => {
 
   if (req.session.user) {
     try {
-      const pool = require("./db/poolconnect");
-      const result = await pool.query(
-        "SELECT COUNT(*)::int AS count FROM notificaciones WHERE usuario_id = $1 AND leida = false",
-        [req.session.user.id]
-      );
-      res.locals.unreadNotifications = result.rows[0].count;
+      const { Notificacion } = require("./models");
+      const unreadCount = await Notificacion.count({
+        where: { usuario_id: req.session.user.id, leida: false }
+      });
+      res.locals.unreadNotifications = unreadCount;
     } catch (e) {
       // Si la tabla no existe todavía no rompe nada
     }
@@ -62,9 +61,9 @@ app.use((req, res) => {
 
 const inicializarAPP = async () => {
   try {
-    const { createTable } = require("./db/initDB");
-    await createTable();
-    console.log("Base de datos inicializada");
+    const { sequelize } = require("./models");
+    await sequelize.sync({ alter: true });
+    console.log("Base de datos sincronizada con Sequelize");
 
     const PORT = process.env.PORT || 3001;
     app.listen(PORT, () => {

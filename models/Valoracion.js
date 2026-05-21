@@ -1,32 +1,29 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
-const Notificacion = sequelize.define(
-  "Notificacion",
+const Valoracion = sequelize.define(
+  "Valoracion",
   {
     id: {
       type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true,
     },
-    tipo: {
-      type: DataTypes.STRING(30),
+    puntaje: {
+      type: DataTypes.SMALLINT,
       allowNull: false,
-    },
-    referencia_id: {
-      type: DataTypes.INTEGER,
-    },
-    leida: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
+      validate: {
+        min: 1,
+        max: 5,
+      },
     },
   },
   {
-    tableName: "notificaciones",
+    tableName: "valoraciones",
     timestamps: true,
     createdAt: "fecha",
     updatedAt: false,
   }
 );
 
-module.exports = Notificacion;
+module.exports = Valoracion;

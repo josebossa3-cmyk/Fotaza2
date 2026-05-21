@@ -1,6 +1,5 @@
-const Usuario = require("../models/Usuario");
-const Publicacion = require("../models/Publicacion");
-const Notificacion = require("../models/Notificacion");
+const { Usuario, Publicacion, Notificacion, Seguidor, Guardado } = require("../models");
+const { Op } = require("sequelize");
 
 exports.getEditar = (req, res) => {
   res.render("usuarios/editar", {
@@ -19,11 +18,12 @@ exports.postEditar = async (req, res) => {
       foto_perfil = `/uploads/perfiles/${req.file.filename}`;
     }
 
-    const usuarioActualizado = await Usuario.update(usuarioId, {
-      nombre,
-      bio,
-      foto_perfil,
-    });
+    await Usuario.update(
+      { nombre, bio, foto_perfil },
+      { where: { id: usuarioId } }
+    );
+
+    const usuarioActualizado = await Usuario.findByPk(usuarioId, { raw: true });
 
     req.session.user = { ...req.session.user, ...usuarioActualizado };
     req.session.save((err) => {
@@ -42,26 +42,48 @@ exports.postEditar = async (req, res) => {
 
 exports.verPerfil = async (req, res) => {
   try {
-    const usuario = await Usuario.findById(req.params.id);
-    if (!usuario) {
+    const usuarioModel = await Usuario.findByPk(req.params.id, {
+      include: [
+        { model: Usuario, as: "seguidores", attributes: ["id"], through: { attributes: [] } },
+        { model: Usuario, as: "siguiendo", attributes: ["id"], through: { attributes: [] } },
+      ],
+    });
+
+    if (!usuarioModel) {
       req.flash("error_msg", "Usuario no encontrado");
       return res.redirect("/");
     }
 
+    const usuario = usuarioModel.get({ plain: true });
+    usuario.seguidores_count = usuario.seguidores.length;
+    usuario.siguiendo_count = usuario.siguiendo.length;
+
     // Obtener publicaciones del usuario
     const currentUserId = req.session.user ? req.session.user.id : -1;
-    const publicaciones = await Publicacion.findByUsuario(usuario.id, currentUserId);
+    
+    const publicaciones = await Publicacion.findAll({
+      where: { usuario_id: usuario.id },
+      order: [["create_timestamp", "DESC"]],
+      raw: true
+    });
 
     // Verificar si el usuario actual sigue a este usuario
     let siguiendo = false;
     if (req.session.user) {
-      siguiendo = await Usuario.isSiguiendo(req.session.user.id, usuario.id);
+      const existeSeguidor = await Seguidor.findOne({
+        where: { seguidor_id: req.session.user.id, seguido_id: usuario.id }
+      });
+      siguiendo = !!existeSeguidor;
     }
 
-    // Obtener publicaciones guardadas (solo para el propio usuario)
+    // Obtener publicaciones guardadas
     let guardados = [];
     if (req.session.user && req.session.user.id === usuario.id) {
-      guardados = await Publicacion.getGuardados(req.session.user.id);
+      const guardadosModel = await Guardado.findAll({
+        where: { usuario_id: req.session.user.id },
+        include: [{ model: Publicacion }]
+      });
+      guardados = guardadosModel.map(g => g.Publicacion);
     }
 
     res.render("usuarios/perfil", {
@@ -86,10 +108,18 @@ exports.seguir = async (req, res) => {
     if (seguidorId === seguidoId) {
       return res.status(400).json({ success: false, message: "No válido" });
     }
-    await Usuario.seguir(seguidorId, seguidoId);
     
-    // Notificar al usuario seguido
-    await Notificacion.crear(seguidoId, 'nuevo_seguidor', seguidorId, null);
+    const [seguidor, created] = await Seguidor.findOrCreate({
+      where: { seguidor_id: seguidorId, seguido_id: seguidoId }
+    });
+
+    if (created) {
+      await Notificacion.create({
+        usuario_id: seguidoId,
+        actor_id: seguidorId,
+        tipo: 'nuevo_seguidor',
+      });
+    }
 
     res.json({ success: true });
   } catch (error) {
@@ -104,7 +134,11 @@ exports.dejarSeguir = async (req, res) => {
   try {
     const seguidorId = req.session.user.id;
     const seguidoId = parseInt(req.params.id, 10);
-    await Usuario.dejarSeguir(seguidorId, seguidoId);
+    
+    await Seguidor.destroy({
+      where: { seguidor_id: seguidorId, seguido_id: seguidoId }
+    });
+    
     res.json({ success: true });
   } catch (error) {
     console.error(error);
@@ -119,7 +153,13 @@ exports.buscarUsuarios = async (req, res) => {
     const query = req.query.q || '';
     let usuarios = [];
     if (query) {
-      usuarios = await Usuario.search(query);
+      usuarios = await Usuario.findAll({
+        where: {
+          nombre: { [Op.iLike]: `%${query}%` }
+        },
+        attributes: ['id', 'nombre', 'foto_perfil', 'bio'],
+        raw: true
+      });
     }
     res.render("usuarios/buscar", {
       title: "Buscar Usuarios",

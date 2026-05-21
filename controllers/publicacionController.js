@@ -1,5 +1,4 @@
-const pool = require("../db/poolconnect");
-const Notificacion = require("../models/Notificacion");
+const { sequelize, Publicacion, Notificacion, Comentario, Valoracion } = require("../models");
 
 const EXPLORAR_DEMOS = [
   {
@@ -128,19 +127,19 @@ exports.explorar = async (req, res) => {
 
     const whereClause = condiciones.join(" AND ");
 
-    const result = await pool.query(
+    const [rows] = await sequelize.query(
       `SELECT p.id, p.titulo, p.descripcion, p.ruta_archivo AS url, p.etiquetas, p.licencia,
               COALESCE(u.nombre, 'Usuario') AS autor,
               u.id AS autor_id,
               COALESCE(l.likes_count, 0)::int AS likes_count,
               COALESCE(c.comentarios_count, 0)::int AS comentarios_count,
               COALESCE(v.valoracion_promedio, 0)::numeric(3,1) AS valoracion_promedio,
-              EXISTS(SELECT 1 FROM likes ul WHERE ul.publicacion_id = p.id AND ul.usuario_id = $1) AS user_liked
+              EXISTS(SELECT 1 FROM valoraciones ul WHERE ul.publicacion_id = p.id AND ul.usuario_id = $1) AS user_liked
        FROM publicaciones p
        LEFT JOIN usuarios u ON u.id = p.usuario_id
        LEFT JOIN (
          SELECT publicacion_id, COUNT(*)::int AS likes_count
-         FROM likes GROUP BY publicacion_id
+         FROM valoraciones GROUP BY publicacion_id
        ) l ON l.publicacion_id = p.id
        LEFT JOIN (
          SELECT publicacion_id, COUNT(*)::int AS comentarios_count
@@ -153,10 +152,10 @@ exports.explorar = async (req, res) => {
        WHERE ${whereClause}
        ORDER BY ${orderBy}
        LIMIT 60`,
-      valores
+      { bind: valores }
     );
 
-    const publicaciones = result.rows.map((row) => {
+    const publicaciones = rows.map((row) => {
       const tags = row.etiquetas;
       let first = "";
       if (Array.isArray(tags) && tags.length) {
@@ -200,8 +199,7 @@ exports.ver = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Traer la publicación con datos del autor y promedio de valoraciones
-    const result = await pool.query(
+    const [rows] = await sequelize.query(
       `SELECT p.*,
               u.nombre AS autor_nombre,
               u.foto_perfil AS autor_foto,
@@ -215,44 +213,42 @@ exports.ver = async (req, res) => {
        LEFT JOIN comentarios c ON c.publicacion_id = p.id AND c.activo = true
        WHERE p.id = $1 AND p.estado = 'activa'
        GROUP BY p.id, u.nombre, u.foto_perfil, u.id`,
-      [id]
+      { bind: [id] }
     );
 
-    if (result.rows.length === 0) {
+    if (rows.length === 0) {
       return res.status(404).render("404");
     }
 
-    const publicacion = result.rows[0];
+    const publicacion = rows[0];
 
-    // Traer comentarios activos con nombre del autor
-    const comentariosResult = await pool.query(
+    const [comentariosRows] = await sequelize.query(
       `SELECT c.*, u.nombre AS autor_nombre, u.foto_perfil AS autor_foto
        FROM comentarios c
        LEFT JOIN usuarios u ON u.id = c.usuario_id
        WHERE c.publicacion_id = $1 AND c.activo = true
        ORDER BY c.fecha ASC`,
-      [id]
+      { bind: [id] }
     );
 
-    // Si hay usuario logueado, verificar si ya valoró
     let yaValoro = false;
     let miValoracion = null;
     if (req.session.user) {
-      const votoResult = await pool.query(
+      const [votoRows] = await sequelize.query(
         `SELECT puntaje FROM valoraciones 
         WHERE publicacion_id = $1 AND usuario_id = $2`,
-        [id, req.session.user.id]
+        { bind: [id, req.session.user.id] }
       );
-      if (votoResult.rows.length > 0) {
+      if (votoRows.length > 0) {
         yaValoro = true;
-        miValoracion = votoResult.rows[0].puntaje;
+        miValoracion = votoRows[0].puntaje;
       }
     }
 
     res.render("publicaciones/ver", {
       title: publicacion.titulo,
       publicacion,
-      comentarios: comentariosResult.rows,
+      comentarios: comentariosRows,
       yaValoro,
       miValoracion,
       user: req.session.user || null,
@@ -271,23 +267,22 @@ exports.comentar = async (req, res) => {
   const { contenido } = req.body;
 
   try {
-    // Verificar que los comentarios estén abiertos
-    const pub = await pool.query(
-      "SELECT comentarios_abiertos, usuario_id FROM publicaciones WHERE id = $1",
-      [id]
-    );
+    const pub = await Publicacion.findByPk(id);
 
-    if (pub.rows[0]?.comentarios_abiertos) {
-      await pool.query(
-        `INSERT INTO comentarios (contenido, usuario_id, publicacion_id)
-         VALUES ($1, $2, $3)`,
-        [contenido, req.session.user.id, id]
-      );
+    if (pub && pub.comentarios_abiertos) {
+      await Comentario.create({
+        contenido,
+        usuario_id: req.session.user.id,
+        publicacion_id: id
+      });
       
-      // Notificar al autor de la publicación
-      const pubAutor = await pool.query("SELECT usuario_id FROM publicaciones WHERE id = $1", [id]);
-      if (pubAutor.rows[0]) {
-        await Notificacion.crear(pubAutor.rows[0].usuario_id, 'comentario', req.session.user.id, parseInt(id));
+      if (pub.usuario_id) {
+        await Notificacion.create({
+          usuario_id: pub.usuario_id,
+          actor_id: req.session.user.id,
+          tipo: 'comentario',
+          referencia_id: parseInt(id)
+        });
       }
     }
   } catch (err) {
@@ -300,15 +295,15 @@ exports.comentar = async (req, res) => {
 exports.getComentariosApi = async (req, res) => {
   const { id } = req.params;
   try {
-    const comentariosResult = await pool.query(
+    const [comentariosRows] = await sequelize.query(
       `SELECT c.*, u.nombre AS autor_nombre, u.foto_perfil AS autor_foto
        FROM comentarios c
        LEFT JOIN usuarios u ON u.id = c.usuario_id
        WHERE c.publicacion_id = $1 AND c.activo = true
        ORDER BY c.fecha ASC`,
-      [id]
+      { bind: [id] }
     );
-    res.json({ ok: true, comentarios: comentariosResult.rows });
+    res.json({ ok: true, comentarios: comentariosRows });
   } catch (err) {
     console.error("Error al obtener comentarios:", err);
     res.status(500).json({ error: "Error del servidor" });
@@ -327,25 +322,28 @@ exports.comentarApi = async (req, res) => {
   }
 
   try {
-    // Obtener autor de la publicacion para notificar
-    const pub = await pool.query("SELECT usuario_id FROM publicaciones WHERE id = $1", [id]);
+    const pub = await Publicacion.findByPk(id);
 
-    // Insertar comentario
-    const result = await pool.query(
-      `INSERT INTO comentarios (contenido, usuario_id, publicacion_id)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [contenido.trim(), req.session.user.id, id]
-    );
+    const result = await Comentario.create({
+      contenido: contenido.trim(),
+      usuario_id: req.session.user.id,
+      publicacion_id: id
+    });
 
-    if (pub.rows.length > 0) {
-      await Notificacion.crear(pub.rows[0].usuario_id, 'comentario', req.session.user.id, id);
+    if (pub && pub.usuario_id) {
+      await Notificacion.create({
+        usuario_id: pub.usuario_id,
+        actor_id: req.session.user.id,
+        tipo: 'comentario',
+        referencia_id: parseInt(id)
+      });
     }
 
     res.json({
       ok: true,
       comentario: {
-        id: result.rows[0].id,
-        contenido: result.rows[0].contenido,
+        id: result.id,
+        contenido: result.contenido,
         autor: req.session.user.nombre || 'Tú'
       }
     });
@@ -356,6 +354,7 @@ exports.comentarApi = async (req, res) => {
 };
 
 exports.like = async (req, res) => {
+  // En Fotaza2, 'likes' aparentemente es un comportamiento guardado en valoraciones
   if (!req.session.user) {
     return res.status(401).json({ error: "No autenticado" });
   }
@@ -364,44 +363,43 @@ exports.like = async (req, res) => {
   const usuario_id = req.session.user.id;
 
   try {
-    // Verificamos si ya dio like
-    const result = await pool.query(
-      "SELECT 1 FROM likes WHERE publicacion_id = $1 AND usuario_id = $2",
-      [id, usuario_id]
-    );
+    // Verificamos si ya dio like (usamos la tabla valoraciones como sustituto según el esquema de initDB)
+    const result = await Valoracion.findOne({
+      where: { publicacion_id: id, usuario_id: usuario_id }
+    });
 
     let liked = false;
-    if (result.rows.length > 0) {
-      // Ya tiene like, lo quitamos
-      await pool.query(
-        "DELETE FROM likes WHERE publicacion_id = $1 AND usuario_id = $2",
-        [id, usuario_id]
-      );
+    if (result) {
+      await Valoracion.destroy({
+        where: { publicacion_id: id, usuario_id: usuario_id }
+      });
     } else {
-      // No tiene like, lo insertamos
-      await pool.query(
-        "INSERT INTO likes (publicacion_id, usuario_id) VALUES ($1, $2)",
-        [id, usuario_id]
-      );
+      await Valoracion.create({
+        publicacion_id: id,
+        usuario_id: usuario_id,
+        puntaje: 5 // Like = 5 estrellas
+      });
       liked = true;
 
-      // Notificar al autor
-      const pub = await pool.query("SELECT usuario_id FROM publicaciones WHERE id = $1", [id]);
-      if (pub.rows.length > 0) {
-        await Notificacion.crear(pub.rows[0].usuario_id, 'like', usuario_id, id);
+      const pub = await Publicacion.findByPk(id);
+      if (pub && pub.usuario_id) {
+        await Notificacion.create({
+          usuario_id: pub.usuario_id,
+          actor_id: usuario_id,
+          tipo: 'like',
+          referencia_id: parseInt(id)
+        });
       }
     }
 
-    // Devolvemos el total de likes actualizado
-    const countResult = await pool.query(
-      "SELECT COUNT(*)::int AS likes_count FROM likes WHERE publicacion_id = $1",
-      [id]
-    );
+    const countResult = await Valoracion.count({
+      where: { publicacion_id: id }
+    });
 
     res.json({
       ok: true,
       liked: liked,
-      likes_count: countResult.rows[0].likes_count
+      likes_count: countResult
     });
 
   } catch (err) {
@@ -416,18 +414,11 @@ exports.cerrarComentarios = async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Verificar que sea el autor
-    const pub = await pool.query(
-      "SELECT usuario_id, comentarios_abiertos FROM publicaciones WHERE id = $1",
-      [id]
-    );
+    const pub = await Publicacion.findByPk(id);
 
-    if (pub.rows[0]?.usuario_id === req.session.user.id) {
-      const nuevoEstado = !pub.rows[0].comentarios_abiertos;
-      await pool.query(
-        "UPDATE publicaciones SET comentarios_abiertos = $1 WHERE id = $2",
-        [nuevoEstado, id]
-      );
+    if (pub && pub.usuario_id === req.session.user.id) {
+      pub.comentarios_abiertos = !pub.comentarios_abiertos;
+      await pub.save();
     }
   } catch (err) {
     console.error("Error al cerrar comentarios:", err);
@@ -450,47 +441,44 @@ exports.valorar = async (req, res) => {
   }
 
   try {
-    // Verificar que no sea el autor
-    const pub = await pool.query(
-      "SELECT usuario_id FROM publicaciones WHERE id = $1",
-      [id]
-    );
+    const pub = await Publicacion.findByPk(id);
 
-    if (pub.rows[0]?.usuario_id === req.session.user.id) {
+    if (pub && pub.usuario_id === req.session.user.id) {
       return res.status(403).json({ error: "No podés valorar tu propia publicación" });
     }
 
-    // Insertar valoración
-    await pool.query(
-      `INSERT INTO valoraciones (usuario_id, publicacion_id, puntaje)
-       VALUES ($1, $2, $3)`,
-      [req.session.user.id, id, puntajeNum]
-    );
+    const [valoracion, created] = await Valoracion.findOrCreate({
+      where: { usuario_id: req.session.user.id, publicacion_id: id },
+      defaults: { puntaje: puntajeNum }
+    });
 
-    // Notificar al autor
-    const pubAutor = await pool.query("SELECT usuario_id FROM publicaciones WHERE id = $1", [id]);
-    if (pubAutor.rows[0]) {
-      await Notificacion.crear(pubAutor.rows[0].usuario_id, 'valoracion', req.session.user.id, parseInt(id));
+    if (!created) {
+       return res.status(400).json({ error: "Ya valoraste esta publicación" });
     }
 
-    // Devolver nuevo promedio
-    const promResult = await pool.query(
+    if (pub && pub.usuario_id) {
+      await Notificacion.create({
+        usuario_id: pub.usuario_id,
+        actor_id: req.session.user.id,
+        tipo: 'valoracion',
+        referencia_id: parseInt(id)
+      });
+    }
+
+    const promResult = await sequelize.query(
       `SELECT COALESCE(AVG(puntaje), 0)::numeric(3,1) AS promedio,
               COUNT(*)::int AS cantidad
        FROM valoraciones WHERE publicacion_id = $1`,
-      [id]
+      { bind: [id] }
     );
 
     res.json({
       ok: true,
-      promedio: promResult.rows[0].promedio,
-      cantidad: promResult.rows[0].cantidad,
+      promedio: promResult[0][0].promedio,
+      cantidad: promResult[0][0].cantidad,
     });
 
   } catch (err) {
-    if (err.code === "23505") {
-      return res.status(400).json({ error: "Ya valoraste esta publicación" });
-    }
     console.error("Error al valorar:", err);
     res.status(500).json({ error: "Error del servidor" });
   }
