@@ -52,7 +52,7 @@ const Publicacion = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: true,
     },
-    // usuario_id será agregado por las asociaciones en index.js
+   
   },
   {
     tableName: "publicaciones",

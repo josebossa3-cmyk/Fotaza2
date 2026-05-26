@@ -33,7 +33,7 @@ block content
         .list-group-item.d-flex.align-items-center.gap-3.py-3(
           class=n.leida ? 'opacity-75' : 'fw-semibold'
         )
-          //- Avatar del actor
+         
           if n.actor_foto
             img.rounded-circle(
               src=n.actor_foto
@@ -44,7 +44,7 @@ block content
               style="width:40px; height:40px; flex-shrink:0;"
             )= (n.actor_nombre || '?').charAt(0).toUpperCase()
 
-          //- Contenido
+         
           .flex-grow-1
             span
               a.text-decoration-none.text-dark(href=`/usuarios/${n.actor_id}`)
@@ -53,9 +53,9 @@ block content
             .text-muted.small.mt-1
               = new Date(n.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
-          //- Ícono del tipo
+          
           i.bi(class=icono style="font-size:1.1rem; flex-shrink:0; opacity:0.6;")
 
-          //- Indicador no leída
+         
           if !n.leida
             span.rounded-circle.bg-primary.d-inline-block(style="width:8px; height:8px; flex-shrink:0;")

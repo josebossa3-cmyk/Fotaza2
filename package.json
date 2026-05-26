@@ -6,8 +6,7 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "db:init": "node db/initDB.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "db:init": "node db/initDB.js"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +22,7 @@
     "pg": "^8.20.0",
     "pg-hstore": "^2.3.4",
     "pug": "^3.0.4",
-    "sequelize": "^6.37.8"
+    "sequelize": "^6.37.8",
+    "sharp": "^0.34.5"
   }
 }

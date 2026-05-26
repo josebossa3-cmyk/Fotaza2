@@ -10,11 +10,16 @@
   const titleEl = document.getElementById("modalTitle");
   const descEl = document.getElementById("modalPostDesc");
   const tagsRow = document.getElementById("modalTagsRow");
+  const ratingNumEl = document.getElementById("ratingNum");
   const likesNumEl = document.getElementById("likesNum");
   const commentsCountEl = document.getElementById("commentsCountNum");
   const viewsCountEl = document.getElementById("viewsCountNum");
   const heartBtn = document.getElementById("heartBtn");
   const likeStat = document.getElementById("likeStat");
+  const modalRatingForm = document.getElementById("modalRatingForm");
+  const modalRatingMsg = document.getElementById("modalRatingMsg");
+  const modalRatingLabel = document.getElementById("modalRatingLabel");
+  const starBtnsModal = document.querySelectorAll(".estrella-btn-modal");
   const followBtn = document.getElementById("followBtn");
   const saveBtn = document.getElementById("saveBtn");
   const saveText = document.getElementById("saveText");
@@ -32,11 +37,13 @@
     !titleEl ||
     !descEl ||
     !tagsRow ||
+    !ratingNumEl ||
     !likesNumEl ||
     !commentsCountEl ||
     !viewsCountEl ||
     !heartBtn ||
     !likeStat ||
+    !modalRatingForm ||
     !followBtn ||
     !saveBtn ||
     !saveText ||
@@ -85,7 +92,13 @@
     const icon = heartBtn.querySelector("i");
     if (icon) icon.className = liked ? "bi bi-heart-fill" : "bi bi-heart";
     heartBtn.classList.toggle("liked", liked);
-    likeStat.classList.toggle("stat-active", liked);
+    if (likeStat) likeStat.classList.toggle("stat-active", liked);
+  }
+
+  function updateStarsUI(promedio, cantidad) {
+    if (ratingNumEl) {
+      ratingNumEl.textContent = `${Number(promedio).toFixed(1)} (${cantidad})`;
+    }
   }
 
   function syncFollowUI() {
@@ -158,6 +171,28 @@
       card.dataset.liked === "true" ||
       card.dataset.liked === "yes";
 
+    const promedio = parseFloat(card.dataset.promedio) || 0;
+    const votos = parseInt(card.dataset.votos, 10) || 0;
+    const yaValoro = card.dataset.yaValoro === "1";
+    
+    if (yaValoro) {
+       modalRatingForm.style.display = "none";
+       modalRatingLabel.style.display = "none";
+       modalRatingMsg.style.display = "block";
+       modalRatingMsg.textContent = "Ya valoraste esta publicación.";
+    } else {
+       modalRatingForm.style.display = "flex";
+       modalRatingLabel.style.display = "block";
+       modalRatingMsg.style.display = "none";
+       modalRatingMsg.textContent = "";
+       
+       
+       starBtnsModal.forEach(b => {
+          b.classList.remove("btn-warning", "text-white");
+          b.classList.add("btn-outline-warning");
+       });
+    }
+
     following = false;
     saved = false;
 
@@ -172,6 +207,7 @@
     descEl.classList.toggle("is-empty", !desc);
 
     likesNumEl.textContent = formatInt(likeCount);
+    updateStarsUI(promedio, votos);
     commentsCountEl.textContent = formatInt(card.dataset.comments);
     viewsCountEl.textContent = formatViews(card.dataset.views);
 
@@ -245,7 +281,7 @@
           likesNumEl.textContent = formatInt(likeCount);
           syncHeartUI();
           
-          // update the card attributes so it remembers state
+          
           const card = document.querySelector(`.post-card[data-id="${currentPubId}"]`) || document.querySelector(`.masonry-item[data-id="${currentPubId}"]`);
           if (card) {
              card.dataset.liked = liked ? '1' : '';
@@ -270,9 +306,75 @@
     toggleLike();
   });
 
-  likeStat.addEventListener("click", () => {
-    toggleLike();
+  if (likeStat) {
+     likeStat.addEventListener("click", () => {
+       toggleLike();
+     });
+  }
+
+  starBtnsModal.forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!currentPubId) return;
+      const valor = btn.getAttribute("data-valor");
+
+      try {
+        const res = await fetch(`/publicaciones/${currentPubId}/valorar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ puntaje: valor })
+        });
+        
+        const data = await res.json();
+        if (res.ok && data.ok) {
+           modalRatingForm.style.display = "none";
+           modalRatingLabel.style.display = "none";
+           modalRatingMsg.style.display = "block";
+           modalRatingMsg.textContent = `Ya valoraste esta publicación con ${valor} ★`;
+           
+           updateStarsUI(data.promedio, data.cantidad);
+           
+           const card = document.querySelector(`.post-card[data-id="${currentPubId}"]`) || document.querySelector(`.masonry-item[data-id="${currentPubId}"]`);
+           if (card) {
+             card.dataset.yaValoro = '1';
+             card.dataset.promedio = String(data.promedio);
+             card.dataset.votos = String(data.cantidad);
+           }
+        } else {
+           if (res.status === 401) {
+              alert("Debes iniciar sesión para valorar");
+              window.location.href = "/auth/login";
+           } else {
+              alert(data.error || "Error al valorar");
+           }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    });
+    
+    
+    btn.addEventListener("mouseenter", () => {
+       const valor = parseInt(btn.getAttribute("data-valor"));
+       starBtnsModal.forEach(b => {
+          if (parseInt(b.getAttribute("data-valor")) <= valor) {
+             b.classList.remove("btn-outline-warning");
+             b.classList.add("btn-warning", "text-white");
+          } else {
+             b.classList.remove("btn-warning", "text-white");
+             b.classList.add("btn-outline-warning");
+          }
+       });
+    });
   });
+  
+  if (modalRatingForm) {
+     modalRatingForm.addEventListener("mouseleave", () => {
+        starBtnsModal.forEach(b => {
+           b.classList.remove("btn-warning", "text-white");
+           b.classList.add("btn-outline-warning");
+        });
+     });
+  }
 
   followBtn.addEventListener("click", () => {
     following = !following;
@@ -327,7 +429,7 @@
           commentInput.value = "";
           item.scrollIntoView({ behavior: "smooth", block: "nearest" });
           
-          // update card comments count
+          
           const card = document.querySelector(`.post-card[data-id="${currentPubId}"]`) || document.querySelector(`.masonry-item[data-id="${currentPubId}"]`);
           if (card) {
              const currentComments = parseInt(card.dataset.comments || "0", 10);

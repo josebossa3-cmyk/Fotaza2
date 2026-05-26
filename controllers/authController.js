@@ -1,6 +1,9 @@
 const IniciarSesion = require("../db/iniciarSesion");
 const { crearUsuario } = require("../db/crearUsuario");
 const { Publicacion, Sesion } = require("../models");
+const sharp = require('sharp');
+const path = require('path');
+const fs = require('fs');
 
 function parseEtiquetas(str) {
   if (!str || typeof str !== "string") return null;
@@ -182,6 +185,39 @@ exports.postSubirFoto = async (req, res) => {
     const titulo = (req.body.titulo || "").trim() || "Sin título";
     const descripcion = (req.body.descripcion || "").trim() || null;
     const etiquetas = parseEtiquetas(req.body.etiquetas);
+    const licencia = req.body.licencia || 'libre';
+
+    if (licencia === 'copyright' && req.file) {
+      const textoMarca = req.body.texto_marca || req.session.user.nombre;
+      const inputPath = req.file.path;
+      const outputPath = path.join('public', 'uploads', 'publicaciones', 'marcadas_' + req.file.filename);
+
+      
+      const svgTexto = `
+        <svg width="400" height="60">
+          <rect width="400" height="60" fill="rgba(0,0,0,0.4)" rx="5"/>
+          <text x="200" y="40" 
+                font-family="Arial" 
+                font-size="28" 
+                fill="white" 
+                text-anchor="middle"
+                opacity="0.9">© ${textoMarca}</text>
+        </svg>`;
+
+      await sharp(inputPath)
+        .composite([{
+          input: Buffer.from(svgTexto),
+          gravity: 'south' 
+        }])
+        .toFile(outputPath);
+
+      
+      fs.unlinkSync(inputPath);
+      
+      
+      req.file.path = outputPath;
+      req.file.filename = 'marcadas_' + req.file.filename;
+    }
 
     await Publicacion.create({
       titulo,
@@ -191,8 +227,9 @@ exports.postSubirFoto = async (req, res) => {
       tipo_archivo: req.file.mimetype,
       tamaño_bytes: req.file.size,
       etiquetas,
-      licencia: null,
-      marca_agua: false,
+      licencia: licencia,
+      marca_agua: licencia === 'copyright',
+      texto_marca: licencia === 'copyright' ? (req.body.texto_marca || req.session.user.nombre) : null,
       usuario_id: req.session.user.id,
     });
 

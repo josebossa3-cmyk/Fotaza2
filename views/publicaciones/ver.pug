@@ -4,7 +4,7 @@ block content
   .container.py-4
 
     .row.g-4
-      //- Columna izquierda: imagen
+      //- Columna izquierda imagen
       .col-lg-8
         .card.border-0.shadow-sm
           img.card-img-top.rounded(
@@ -13,7 +13,7 @@ block content
             style="max-height: 600px; object-fit: contain; background: #f8f9fa;"
           )
 
-      //- Columna derecha: info
+      //- Columna derecha info
       .col-lg-4
         .d-flex.flex-column.gap-3
 
@@ -84,6 +84,16 @@ block content
 
           hr
 
+          //- Botón Guardar
+          if user && user.id !== publicacion.autor_id
+            button.btn.btn-outline-primary.w-100.mb-2(
+              type="button"
+              id="btn-guardar"
+              data-id=publicacion.id
+            )
+              i.bi.bi-bookmark.me-2
+              | Guardar
+
           //- Botón Me Interesa
           if user && user.id !== publicacion.autor_id
             button.btn.btn-primary.w-100(
@@ -91,9 +101,10 @@ block content
               id="btn-me-interesa"
               data-id=publicacion.id
             )
-              | 💌 Me interesa
+              i.bi.bi-chat-dots.me-2
+              | Me interesa
 
-          //- Cerrar comentarios (solo el autor)
+          //- Cerrar comentarios 
           if user && user.id === publicacion.autor_id
             form(method="POST" action=`/publicaciones/${publicacion.id}/cerrar-comentarios`)
               button.btn.btn-outline-secondary.w-100.btn-sm(type="submit")

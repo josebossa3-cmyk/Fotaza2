@@ -11,7 +11,7 @@ const app = express();
 app.set("view engine", "pug");
 app.set("views", path.join(__dirname, "views"));
 
-// Middleware
+
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -26,7 +26,7 @@ app.use(
   }),
 );
 
-// Middleware del currentUser
+// Middleware 
 app.use(async (req, res, next) => {
   res.locals.currentUser = req.session.user || null;
   res.locals.unreadNotifications = 0;
@@ -46,7 +46,7 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// Después de la configuración de sesión
+
 app.use(flash());
 
 // Rutas
@@ -54,7 +54,7 @@ app.use("/auth", require("./routes/auth"));
 app.use("/", require("./routes/index"));
 app.use("/usuarios", usuarioRoutes);
 
-// Manejo de errores 404
+
 app.use((req, res) => {
   res.status(404).render("404");
 });
@@ -63,7 +63,7 @@ const inicializarAPP = async () => {
   try {
     const { sequelize } = require("./models");
     await sequelize.sync({ alter: true });
-    console.log("Base de datos sincronizada con Sequelize");
+    console.log("Base de datos sincronizada ");
 
     const PORT = process.env.PORT || 3001;
     app.listen(PORT, () => {

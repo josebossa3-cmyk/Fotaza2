@@ -6,20 +6,20 @@ exports.verSeguidos = async (req, res) => {
   try {
     const userId = req.session.user.id;
 
-    // Traer publicaciones de usuarios que sigo
+    //publicaciones de usuarios que sigo
     const [result] = await sequelize.query(
       `SELECT p.id, p.titulo, p.descripcion, p.ruta_archivo AS url, p.etiquetas,
               COALESCE(u.nombre, 'Usuario') AS autor,
               u.id AS autor_id,
               COALESCE(l.likes_count, 0)::int AS likes_count,
               COALESCE(c.comentarios_count, 0)::int AS comentarios_count,
-              EXISTS(SELECT 1 FROM valoraciones ul WHERE ul.publicacion_id = p.id AND ul.usuario_id = $1) AS user_liked
+              EXISTS(SELECT 1 FROM likes ul WHERE ul.publicacion_id = p.id AND ul.usuario_id = $1) AS user_liked
        FROM publicaciones p
        JOIN usuarios u ON u.id = p.usuario_id
        JOIN seguidores s ON s.seguido_id = p.usuario_id AND s.seguidor_id = $1
        LEFT JOIN (
          SELECT publicacion_id, COUNT(*)::int AS likes_count
-         FROM valoraciones GROUP BY publicacion_id
+         FROM likes GROUP BY publicacion_id
        ) l ON l.publicacion_id = p.id
        LEFT JOIN (
          SELECT publicacion_id, COUNT(*)::int AS comentarios_count
@@ -31,7 +31,7 @@ exports.verSeguidos = async (req, res) => {
        { bind: [userId] }
     );
 
-    // Traer lista de usuarios seguidos
+    // lista de usuarios seguidos
     const seguidosRecords = await Seguidor.findAll({
       where: { seguidor_id: userId }
     });

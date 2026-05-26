@@ -18,6 +18,14 @@ block content
         .mb-3
           label.form-label(for="etiquetas") Etiquetas
           input#etiquetas.form-control(type="text" name="etiquetas" placeholder="Separadas por coma: fotografía, urbano")
+        .mb-3
+          label.form-label(for="licencia") Licencia
+          select#licencia.form-select(name="licencia" required)
+            option(value="libre") Libre uso
+            option(value="copyright") Copyright
+        .mb-3#campoMarca(style="display:none")
+          label.form-label(for="texto_marca") Texto de la marca de agua (opcional)
+          input#texto_marca.form-control(type="text" name="texto_marca" placeholder="Ej: © Juan Pérez")
         .d-grid
           button.btn.btn-primary(type="submit")
             i.bi.bi-cloud-upload.me-2
@@ -38,3 +46,10 @@ block content
                   p.card-text.small.text-truncate.mb-0= foto.titulo
       else
         p.text-muted.small Todavía no hay publicaciones en la galería global.
+
+block scripts
+  script.
+    document.getElementById('licencia').addEventListener('change', function() {
+      document.getElementById('campoMarca').style.display = 
+        this.value === 'copyright' ? 'block' : 'none';
+    });

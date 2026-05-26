@@ -40,8 +40,8 @@ const Usuario = sequelize.define(
   {
     tableName: "usuarios",
     timestamps: true,
-    createdAt: "fecha_creacion", // mapear createdAt a fecha_creacion
-    updatedAt: false, // la tabla original no tenia updatedAt
+    createdAt: "fecha_creacion", 
+    updatedAt: false, 
   }
 );
 

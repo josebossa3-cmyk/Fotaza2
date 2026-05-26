@@ -67,7 +67,7 @@ exports.verPerfil = async (req, res) => {
       raw: true
     });
 
-    // Verificar si el usuario actual sigue a este usuario
+    // Verificar si sigue a este usuario
     let siguiendo = false;
     if (req.session.user) {
       const existeSeguidor = await Seguidor.findOne({

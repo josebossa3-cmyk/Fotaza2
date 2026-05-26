@@ -24,11 +24,11 @@ const Sesion = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: true,
     },
-    // usuario_id se agregará en las asociaciones
+  
   },
   {
     tableName: "sesiones",
-    timestamps: false, // Las sesiones en tu tabla anterior solo tienen fecha_inicio
+    timestamps: false, 
   }
 );
 

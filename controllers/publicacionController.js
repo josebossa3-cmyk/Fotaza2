@@ -1,4 +1,4 @@
-const { sequelize, Publicacion, Notificacion, Comentario, Valoracion } = require("../models");
+const { sequelize, Publicacion, Notificacion, Comentario, Valoracion, Like } = require("../models");
 
 const EXPLORAR_DEMOS = [
   {
@@ -134,19 +134,20 @@ exports.explorar = async (req, res) => {
               COALESCE(l.likes_count, 0)::int AS likes_count,
               COALESCE(c.comentarios_count, 0)::int AS comentarios_count,
               COALESCE(v.valoracion_promedio, 0)::numeric(3,1) AS valoracion_promedio,
-              EXISTS(SELECT 1 FROM valoraciones ul WHERE ul.publicacion_id = p.id AND ul.usuario_id = $1) AS user_liked
-       FROM publicaciones p
-       LEFT JOIN usuarios u ON u.id = p.usuario_id
-       LEFT JOIN (
-         SELECT publicacion_id, COUNT(*)::int AS likes_count
-         FROM valoraciones GROUP BY publicacion_id
-       ) l ON l.publicacion_id = p.id
+              COALESCE(v.valoracion_cantidad, 0)::int AS valoracion_cantidad,
+               EXISTS(SELECT 1 FROM likes ul WHERE ul.publicacion_id = p.id AND ul.usuario_id = $1) AS user_liked
+        FROM publicaciones p
+        LEFT JOIN usuarios u ON u.id = p.usuario_id
+        LEFT JOIN (
+          SELECT publicacion_id, COUNT(*)::int AS likes_count
+          FROM likes GROUP BY publicacion_id
+        ) l ON l.publicacion_id = p.id
        LEFT JOIN (
          SELECT publicacion_id, COUNT(*)::int AS comentarios_count
          FROM comentarios WHERE activo = true GROUP BY publicacion_id
        ) c ON c.publicacion_id = p.id
        LEFT JOIN (
-         SELECT publicacion_id, AVG(puntaje)::numeric(3,1) AS valoracion_promedio
+         SELECT publicacion_id, AVG(puntaje)::numeric(3,1) AS valoracion_promedio, COUNT(*)::int AS valoracion_cantidad
          FROM valoraciones GROUP BY publicacion_id
        ) v ON v.publicacion_id = p.id
        WHERE ${whereClause}
@@ -354,7 +355,6 @@ exports.comentarApi = async (req, res) => {
 };
 
 exports.like = async (req, res) => {
-  // En Fotaza2, 'likes' aparentemente es un comportamiento guardado en valoraciones
   if (!req.session.user) {
     return res.status(401).json({ error: "No autenticado" });
   }
@@ -363,21 +363,19 @@ exports.like = async (req, res) => {
   const usuario_id = req.session.user.id;
 
   try {
-    // Verificamos si ya dio like (usamos la tabla valoraciones como sustituto según el esquema de initDB)
-    const result = await Valoracion.findOne({
+    const result = await Like.findOne({
       where: { publicacion_id: id, usuario_id: usuario_id }
     });
 
     let liked = false;
     if (result) {
-      await Valoracion.destroy({
+      await Like.destroy({
         where: { publicacion_id: id, usuario_id: usuario_id }
       });
     } else {
-      await Valoracion.create({
+      await Like.create({
         publicacion_id: id,
-        usuario_id: usuario_id,
-        puntaje: 5 // Like = 5 estrellas
+        usuario_id: usuario_id
       });
       liked = true;
 
@@ -392,7 +390,7 @@ exports.like = async (req, res) => {
       }
     }
 
-    const countResult = await Valoracion.count({
+    const countResult = await Like.count({
       where: { publicacion_id: id }
     });
 

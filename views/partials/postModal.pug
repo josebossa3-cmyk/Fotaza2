@@ -26,6 +26,9 @@
           .stat#likeStat
             i.bi.bi-heart
             span#likesNum 0
+          .stat#starStat(title="Valoración Promedio")
+            i.bi.bi-star-fill.text-warning
+            span#ratingNum 0.0 (0)
           .stat
             i.bi.bi-chat
             span#commentsCountNum 0
@@ -40,6 +43,18 @@
           h2.post-title#modalTitle Título
           p.post-desc#modalPostDesc
           #modalTagsRow.tags-row
+          .vf-divider
+          .modal-rating-section.mb-3.p-2.border.rounded.bg-light
+            p.small.text-muted.mb-1#modalRatingLabel Valorar publicación:
+            .d-flex.gap-1#modalRatingForm
+              each val in [1,2,3,4,5]
+                button.btn.btn-sm.btn-outline-warning.estrella-btn-modal(type="button" data-valor=val) ★
+            p#modalRatingMsg.text-muted.small.mt-1.mb-0(style="display: none;")
+          
+          button.btn.btn-primary.w-100.mb-3#interesaBtn(type="button" style="border-radius:20px;")
+            i.bi.bi-chat-dots.me-2
+            | Me interesa
+            
           .vf-divider
           p.comments-label Comentarios
           #commentsList.comments-list

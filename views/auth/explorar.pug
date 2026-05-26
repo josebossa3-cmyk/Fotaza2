@@ -49,14 +49,14 @@ block content
           if q || licencia || orden
             a.explore-filter-clear(href="/publicaciones") Limpiar filtros
 
-      //- Filtros por categoría (los que ya tenías)
+      
       nav.explore-filters(role="navigation" aria-label="Filtros por categoría")
         button.filter-item.active(type="button" data-filter="todo") Todo
         button.filter-item(type="button" data-filter="diseño") Diseño
         button.filter-item(type="button" data-filter="fotografía") Fotografía
         button.filter-item(type="button" data-filter="arquitectura") Arquitectura
 
-    //- Resultado de búsqueda
+    
     if q
       p.explore-search-result
         | #{totalResultados || 0} resultado#{totalResultados !== 1 ? 's' : ''} para
@@ -71,6 +71,8 @@ block content
             var handlePub = '@' + String(pub.autor || 'usuario').replace(/\s+/g, '_').toLowerCase();
             var likesN = pub.likes_count != null ? pub.likes_count : 0;
             var comN = pub.comentarios_count != null ? pub.comentarios_count : 0;
+            var promedio = pub.valoracion_promedio != null ? pub.valoracion_promedio : 0;
+            var votos = pub.valoracion_cantidad != null ? pub.valoracion_cantidad : 0;
           article.post-card(
             role="button"
             tabindex="0"
@@ -87,6 +89,9 @@ block content
             data-handle=handlePub
             data-likes=String(likesN)
             data-liked=(pub.user_liked ? '1' : '')
+            data-promedio=String(promedio)
+            data-votos=String(votos)
+            data-ya-valoro=(pub.user_liked ? '1' : '')
             data-comments=String(comN)
             data-views="0"
             data-tags=(pub.tagsCsv || '')

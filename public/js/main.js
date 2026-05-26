@@ -1,11 +1,11 @@
-// Valoración con estrellas
+
 document.addEventListener("DOMContentLoaded", () => {
     const botones = document.querySelectorAll(".estrella-btn");
     if (!botones.length) return;
   
     const publicacionId = botones[0].dataset.id;
   
-    // Efecto hover
+    
     botones.forEach((btn) => {
       btn.addEventListener("mouseenter", () => {
         const val = parseInt(btn.dataset.valor);
@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
         botones.forEach((b) => (b.textContent = "★"));
       });
   
-      // Click: enviar valoración
+     
       btn.addEventListener("click", async () => {
         const puntaje = btn.dataset.valor;
   
@@ -32,12 +32,12 @@ document.addEventListener("DOMContentLoaded", () => {
           const data = await res.json();
   
           if (data.ok) {
-            // Actualizar promedio en pantalla
+           
             const promDiv = document.querySelector(".valoracion-promedio");
             if (promDiv) {
               promDiv.textContent = `${data.promedio} (${data.cantidad} votos)`;
             }
-            // Ocultar el formulario de estrellas
+          
             document.querySelector("#estrellas-form")?.remove();
   
             // Mostrar mensaje de confirmación
