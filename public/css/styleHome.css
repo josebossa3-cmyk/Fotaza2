@@ -1,12 +1,12 @@
 :root {
-    --bg: #618183;
+    --bg: #000000;
     --surface: #141414;
     --surface2: #1e1e1e;
     --border: rgba(0, 0, 0, 0.07);
-    --text: #000000;
+    --text: #fdfdfd;
     --text-muted: #ffffff;
-    --accent: #e8d5b0;
-    --accent2: #c9b88a;
+    --accent: #ffaa00;
+    --accent2: #ffbb00;
     --radius: 16px;
     --font-display: "Playfair Display", serif;
     --font-body: "DM Sans", sans-serif;
