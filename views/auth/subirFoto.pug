@@ -40,7 +40,7 @@ block content
           each foto in fotos
             .col-6.col-md-4
               .card.border-0.shadow-sm.h-100
-                - var imgUrl = foto.url && String(foto.url).startsWith('http') ? foto.url : (foto.url && String(foto.url).charAt(0) === '/' ? foto.url : '/' + (foto.url || ''))
+                - var imgUrl = foto.url && (String(foto.url).startsWith('http') || String(foto.url).startsWith('data:')) ? foto.url : (foto.url && String(foto.url).charAt(0) === '/' ? foto.url : '/' + (foto.url || ''))
                 img.card-img-top(src=imgUrl alt=foto.titulo style="object-fit: cover; height: 140px;")
                 .card-body.p-2
                   p.card-text.small.text-truncate.mb-0= foto.titulo

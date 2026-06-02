@@ -27,7 +27,7 @@ block content
     .row.g-3.mb-5
       each g in guardados
         .col-6.col-md-3
-          - var u = g.ruta_archivo && String(g.ruta_archivo).startsWith('http') ? g.ruta_archivo : (g.ruta_archivo && String(g.ruta_archivo).charAt(0) === '/' ? g.ruta_archivo : '/' + (g.ruta_archivo || ''))
+          - var u = g.ruta_archivo && (String(g.ruta_archivo).startsWith('http') || String(g.ruta_archivo).startsWith('data:')) ? g.ruta_archivo : (g.ruta_archivo && String(g.ruta_archivo).charAt(0) === '/' ? g.ruta_archivo : '/' + (g.ruta_archivo || ''))
           a.text-decoration-none(href="/publicaciones")
             img.rounded.w-100(src=u alt=g.titulo style="object-fit: cover; height: 120px;")
 
@@ -48,7 +48,7 @@ block content
     .row.g-3
       each pub in publicaciones
         .col-6.col-md-4
-          - var pu = pub.ruta_archivo && String(pub.ruta_archivo).startsWith('http') ? pub.ruta_archivo : (pub.ruta_archivo && String(pub.ruta_archivo).charAt(0) === '/' ? pub.ruta_archivo : '/' + (pub.ruta_archivo || ''))
+          - var pu = pub.ruta_archivo && (String(pub.ruta_archivo).startsWith('http') || String(pub.ruta_archivo).startsWith('data:')) ? pub.ruta_archivo : (pub.ruta_archivo && String(pub.ruta_archivo).charAt(0) === '/' ? pub.ruta_archivo : '/' + (pub.ruta_archivo || ''))
           - var pubTags = tagsCsvPerfil(pub.etiquetas);
           .card.border-0.shadow-sm.h-100(
             role="button"
