@@ -1,5 +1,6 @@
 const { Usuario, Publicacion, Notificacion, Seguidor, Guardado } = require("../models");
 const { Op } = require("sequelize");
+const sharp = require("sharp");
 
 exports.getEditar = (req, res) => {
   res.render("usuarios/editar", {
@@ -15,7 +16,14 @@ exports.postEditar = async (req, res) => {
 
     let foto_perfil = req.session.user.foto_perfil;
     if (req.file) {
-      foto_perfil = `/uploads/perfiles/${req.file.filename}`;
+      // procesar imagen en memoria y guardar como data URI
+      let buf = req.file.buffer;
+      buf = await sharp(buf)
+        .resize({ width: 400, height: 400, fit: 'cover' })
+        .toFormat('jpeg', { quality: 80 })
+        .toBuffer();
+      const base64 = buf.toString('base64');
+      foto_perfil = `data:${req.file.mimetype};base64,${base64}`;
     }
 
     await Usuario.update(

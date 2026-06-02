@@ -21,7 +21,7 @@ const Publicacion = sequelize.define(
       allowNull: false,
     },
     ruta_archivo: {
-      type: DataTypes.STRING(500),
+      type: DataTypes.TEXT,
       allowNull: false,
     },
     tipo_archivo: {

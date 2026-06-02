@@ -2,8 +2,6 @@ const IniciarSesion = require("../db/iniciarSesion");
 const { crearUsuario } = require("../db/crearUsuario");
 const { Publicacion, Sesion } = require("../models");
 const sharp = require('sharp');
-const path = require('path');
-const fs = require('fs');
 
 function parseEtiquetas(str) {
   if (!str || typeof str !== "string") return null;
@@ -187,45 +185,39 @@ exports.postSubirFoto = async (req, res) => {
     const etiquetas = parseEtiquetas(req.body.etiquetas);
     const licencia = req.body.licencia || 'libre';
 
-    if (licencia === 'copyright' && req.file) {
-      const textoMarca = req.body.texto_marca || req.session.user.nombre;
-      const inputPath = req.file.path;
-      const outputPath = path.join('public', 'uploads', 'publicaciones', 'marcadas_' + req.file.filename);
+    // Procesar imagen en memoria con sharp
+    let finalBuffer = req.file.buffer;
 
-      
+    // Redimensionar y convertir a JPEG/optimizado para ahorrar espacio
+    finalBuffer = await sharp(finalBuffer)
+      .resize({ width: 1200, withoutEnlargement: true })
+      .toFormat('jpeg', { quality: 80 })
+      .toBuffer();
+
+    if (licencia === 'copyright') {
+      const textoMarca = req.body.texto_marca || req.session.user.nombre;
       const svgTexto = `
-        <svg width="400" height="60">
-          <rect width="400" height="60" fill="rgba(0,0,0,0.4)" rx="5"/>
-          <text x="200" y="40" 
-                font-family="Arial" 
-                font-size="28" 
-                fill="white" 
-                text-anchor="middle"
-                opacity="0.9">© ${textoMarca}</text>
+        <svg width="800" height="80">
+          <rect width="800" height="80" fill="rgba(0,0,0,0.4)" rx="5"/>
+          <text x="400" y="52" font-family="Arial" font-size="36" fill="white" text-anchor="middle">© ${textoMarca}</text>
         </svg>`;
 
-      await sharp(inputPath)
-        .composite([{
-          input: Buffer.from(svgTexto),
-          gravity: 'south' 
-        }])
-        .toFile(outputPath);
-
-      
-      fs.unlinkSync(inputPath);
-      
-      
-      req.file.path = outputPath;
-      req.file.filename = 'marcadas_' + req.file.filename;
+      finalBuffer = await sharp(finalBuffer)
+        .composite([{ input: Buffer.from(svgTexto), gravity: 'south' }])
+        .toBuffer();
     }
+
+    // Convertir a data URI base64
+    const base64 = finalBuffer.toString('base64');
+    const dataUri = `data:${req.file.mimetype};base64,${base64}`;
 
     await Publicacion.create({
       titulo,
       descripcion,
       nombre_archivo: req.file.originalname,
-      ruta_archivo: `/uploads/publicaciones/${req.file.filename}`,
+      ruta_archivo: dataUri,
       tipo_archivo: req.file.mimetype,
-      tamaño_bytes: req.file.size,
+      tamaño_bytes: finalBuffer.length,
       etiquetas,
       licencia: licencia,
       marca_agua: licencia === 'copyright',
