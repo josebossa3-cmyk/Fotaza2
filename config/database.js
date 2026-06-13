@@ -1,6 +1,6 @@
 const { Sequelize } = require("sequelize");
 const pg = require("pg");
-   
+
 const sequelize = new Sequelize(
     process.env.DB_NAME,
     process.env.DB_USER,
@@ -10,7 +10,12 @@ const sequelize = new Sequelize(
         port: process.env.DB_PORT,
         dialect: "postgres",
         dialectModule: pg,
-       
+        dialectOptions: {
+            ssl: {
+                require: true,
+                rejectUnauthorized: false
+            }
+        }
     }
 );
 
