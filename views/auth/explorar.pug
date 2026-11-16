@@ -37,9 +37,12 @@ block content
         //- Filtros
         .explore-search-filters
           select.explore-filter-select(name="licencia")
-            option(value="" selected=!licencia) Todas las licencias
-            option(value="libre" selected=licencia==='libre') Libre uso
-            option(value="copyright" selected=licencia==='copyright') Copyright
+            if !currentUser
+              option(value="libre" selected) Libre uso (Público)
+            else
+              option(value="" selected=!licencia) Todas las licencias
+              option(value="libre" selected=licencia==='libre') Libre uso
+              option(value="copyright" selected=licencia==='copyright') Copyright
 
           select.explore-filter-select(name="orden")
             option(value="reciente" selected=orden==='reciente' || !orden) Más recientes
@@ -56,7 +59,14 @@ block content
         button.filter-item(type="button" data-filter="fotografía") Fotografía
         button.filter-item(type="button" data-filter="arquitectura") Arquitectura
 
-    
+    if !currentUser
+      .alert.alert-warning.d-flex.align-items-center.justify-content-between.py-2.px-3.my-3(role="alert")
+        span
+          i.bi.bi-shield-lock.me-2
+          strong Modo público:
+          |  Estás explorando únicamente obras libres de derechos.
+        a.btn.btn-sm.btn-dark.ms-3(href="/auth/login") Iniciar sesión para ver Copyright
+
     if q
       p.explore-search-result
         | #{totalResultados || 0} resultado#{totalResultados !== 1 ? 's' : ''} para

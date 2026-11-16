@@ -26,16 +26,34 @@ app.use(
   }),
 );
 
-// Middleware 
+// sesión y notificaciones
 app.use(async (req, res, next) => {
   res.locals.currentUser = req.session.user || null;
   res.locals.unreadNotifications = 0;
 
   if (req.session.user) {
     try {
-      const { Notificacion } = require("./models");
+      const { Usuario, Notificacion } = require("./models");
+      const dbUser = await Usuario.findByPk(req.session.user.id, {
+        attributes: ["id", "nombre", "email", "rol", "activo", "foto_perfil"],
+      });
+
+      // Si el usuario fue inactivado o eliminado
+      if (!dbUser || !dbUser.activo) {
+        req.session.destroy();
+        res.locals.currentUser = null;
+        return res.redirect("/auth/login?error=inactiva");
+      }
+
+      // Sincronizar campos clave en sesión
+      req.session.user.rol = dbUser.rol;
+      req.session.user.nombre = dbUser.nombre;
+      req.session.user.foto_perfil = dbUser.foto_perfil;
+      req.session.user.activo = dbUser.activo;
+      res.locals.currentUser = req.session.user;
+
       const unreadCount = await Notificacion.count({
-        where: { usuario_id: req.session.user.id, leida: false }
+        where: { usuario_id: req.session.user.id, leida: false },
       });
       res.locals.unreadNotifications = unreadCount;
     } catch (e) {
@@ -65,7 +83,7 @@ const inicializarAPP = async () => {
     await sequelize.sync({ alter: true });
     console.log("Base de datos sincronizada ");
 
-    const PORT = process.env.PORT || 3001;
+    const PORT = process.env.PORT || process.env.SERVER_PORT || 3000;
     app.listen(PORT, () => {
       console.log(`Servidor corriendo en http://localhost:${PORT}`);
     });

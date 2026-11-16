@@ -6,12 +6,7 @@ const seguidosController = require("../controllers/seguidosController");
 const usuarioController = require("../controllers/usuarioController");
 
 // Ruta principal
-router.get("/", (req, res) => {
-  res.render("home", {
-    title: "Inicio",
-    user: req.session.user || null,
-  });
-});
+router.get("/", publicacionController.home);
 
 const proximamente = (pageTitle) => (req, res) => {
   res.render("placeholder", {

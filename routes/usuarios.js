@@ -1,16 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const { uploadPerfil } = require("../middlewares/multerUploads");
+const { ensureAuthenticated } = require("../middlewares/auth");
 const usuarioController = require("../controllers/usuarioController");
-
-// Middleware para verificar autenticación
-const ensureAuthenticated = (req, res, next) => {
-  if (req.session.user) {
-    return next();
-  }
-  req.flash("error_msg", "Debes iniciar sesión para acceder a esta página");
-  res.redirect("/auth/login");
-};
 
 // GET para mostrar la página de edición
 router.get("/editar", ensureAuthenticated, usuarioController.getEditar);

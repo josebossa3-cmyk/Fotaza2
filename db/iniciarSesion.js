@@ -32,7 +32,14 @@ const IniciarSesion = async (email, contraseña) => {
     if (!usuario) {
       return {
         success: false,
-        message: "Usuario no encontrado",
+        message: "Usuario o contraseña incorrectos",
+      };
+    }
+
+    if (usuario.activo === false) {
+      return {
+        success: false,
+        message: "Tu cuenta ha sido desactivada por incumplimiento de las normas de la comunidad.",
       };
     }
 
@@ -41,7 +48,7 @@ const IniciarSesion = async (email, contraseña) => {
     if (!contraseñaValida) {
       return {
         success: false,
-        message: "Contraseña incorrecta",
+        message: "Usuario o contraseña incorrectos",
       };
     }
 
@@ -65,6 +72,8 @@ const IniciarSesion = async (email, contraseña) => {
         email: usuario.email,
         foto_perfil: usuario.foto_perfil || null,
         bio: usuario.bio || null,
+        rol: usuario.rol || "usuario",
+        activo: usuario.activo,
       },
     };
   } catch (error) {

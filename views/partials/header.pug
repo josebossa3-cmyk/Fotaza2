@@ -30,9 +30,21 @@ nav.navbar.navbar-expand-lg.navbar-dark.bg-dark.shadow-sm
                                 span.ms-1 (#{unreadNotifications})
                     
                     li.nav-item.dropdown
-                        a.nav-link.dropdown-toggle(href="#", role="button", data-bs-toggle="dropdown", aria-expanded="false")
-                            | [Avatar]
+                        a.nav-link.dropdown-toggle.d-flex.align-items-center.gap-2(href="#", role="button", data-bs-toggle="dropdown", aria-expanded="false")
+                            if currentUser.foto_perfil
+                                img.rounded-circle(src=currentUser.foto_perfil alt="" style="width:26px; height:26px; object-fit:cover;")
+                            else
+                                .rounded-circle.bg-secondary.text-white.d-inline-flex.align-items-center.justify-content-center(style="width:26px; height:26px; font-size:0.8rem;")
+                                    = (currentUser.nombre && currentUser.nombre.charAt(0).toUpperCase()) || 'U'
+                            span= currentUser.nombre
                         ul.dropdown-menu.dropdown-menu-end.dropdown-menu-dark
+                            if currentUser.rol === 'validador'
+                                li
+                                    a.dropdown-item.text-warning(href="/validador/denuncias")
+                                        i.bi.bi-shield-check.me-2
+                                        | Panel Validador
+                                li
+                                    hr.dropdown-divider
                             li
                                 a.dropdown-item(href=`/usuarios/${currentUser.id}`) Mi perfil
                             li

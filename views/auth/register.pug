@@ -8,6 +8,13 @@ block content
           h3.text-center.text-success.mb-4
             i.bi.bi-person-plus.me-2
             | Crear cuenta
+
+          if error
+            .alert.alert-danger.alert-dismissible.fade.show
+              i.bi.bi-exclamation-triangle.me-2
+              = error
+              button.btn-close(type="button" data-bs-dismiss="alert")
+
           form(action="/auth/register" method="POST")
             .mb-3
               label.form-label(for="username") Usuario
