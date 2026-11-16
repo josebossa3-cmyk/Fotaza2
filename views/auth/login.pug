@@ -9,6 +9,12 @@ block content
             i.bi.bi-box-arrow-in-right.me-2
             | Iniciar sesión
 
+          if error
+            .alert.alert-danger.alert-dismissible.fade.show
+              i.bi.bi-exclamation-triangle.me-2
+              = error
+              button.btn-close(type="button" data-bs-dismiss="alert")
+
           if registered
             .alert.alert-success.alert-dismissible.fade.show
               i.bi.bi-check-circle.me-2 

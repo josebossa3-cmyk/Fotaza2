@@ -62,14 +62,14 @@ Esto crea todas las tablas y carga los usuarios de prueba automáticamente.
 npm start
 ```
 
-Abrí el navegador en: http://localhost:3001
+Abrí el navegador en: http://localhost:3000
 
 ---
 
 ## Variables de entorno (.env)
 
 ```
-PORT=3001
+PORT=3000
 DB_NAME=Fotaza2
 DB_USER=postgres
 DB_PASS=tu_contraseña

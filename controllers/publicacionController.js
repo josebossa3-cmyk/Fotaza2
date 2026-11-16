@@ -91,10 +91,81 @@ const EXPLORAR_DEMOS = [
   },
 ];
 
+exports.home = async (req, res) => {
+  try {
+    const isLogged = !!req.session.user;
+    const userId = isLogged ? req.session.user.id : -1;
+
+    //Anónimos solo ven contenido libre (sin copyright)
+    let whereLicencia = "";
+    if (!isLogged) {
+      whereLicencia = "AND p.licencia = 'libre'";
+    }
+
+    const [rows] = await sequelize.query(
+      `SELECT p.id, p.titulo, p.descripcion, p.ruta_archivo AS url, p.etiquetas, p.licencia,
+              COALESCE(u.nombre, 'Usuario') AS autor,
+              u.id AS autor_id,
+              COALESCE(l.likes_count, 0)::int AS likes_count,
+              COALESCE(c.comentarios_count, 0)::int AS comentarios_count,
+              COALESCE(v.valoracion_promedio, 0)::numeric(3,1) AS valoracion_promedio,
+              COALESCE(v.valoracion_cantidad, 0)::int AS valoracion_cantidad,
+              EXISTS(SELECT 1 FROM likes ul WHERE ul.publicacion_id = p.id AND ul.usuario_id = $1) AS user_liked
+       FROM publicaciones p
+       LEFT JOIN usuarios u ON u.id = p.usuario_id
+       LEFT JOIN (
+         SELECT publicacion_id, COUNT(*)::int AS likes_count
+         FROM likes GROUP BY publicacion_id
+       ) l ON l.publicacion_id = p.id
+       LEFT JOIN (
+         SELECT publicacion_id, COUNT(*)::int AS comentarios_count
+         FROM comentarios WHERE activo = true GROUP BY publicacion_id
+       ) c ON c.publicacion_id = p.id
+       LEFT JOIN (
+         SELECT publicacion_id, AVG(puntaje)::numeric(3,1) AS valoracion_promedio, COUNT(*)::int AS valoracion_cantidad
+         FROM valoraciones GROUP BY publicacion_id
+       ) v ON v.publicacion_id = p.id
+       WHERE p.estado = 'activa' ${whereLicencia}
+       ORDER BY p.create_timestamp DESC
+       LIMIT 24`,
+      { bind: [userId] }
+    );
+
+    const publicaciones = rows.map((row) => {
+      const tags = row.etiquetas;
+      let tagsCsv = "";
+      if (Array.isArray(tags) && tags.length) {
+        tagsCsv = tags.map((t) => String(t || "").trim()).filter(Boolean).join(",");
+      }
+      return { ...row, tagsCsv };
+    });
+
+    res.render("home", {
+      title: "Inicio",
+      publicaciones,
+      user: req.session.user || null,
+    });
+  } catch (err) {
+    console.error("Error al cargar publicaciones de Home:", err);
+    res.render("home", {
+      title: "Inicio",
+      publicaciones: [],
+      user: req.session.user || null,
+    });
+  }
+};
+
 exports.explorar = async (req, res) => {
   try {
-    const userId = req.session.user ? req.session.user.id : -1;
-    const { q, licencia, orden } = req.query;
+    const isLogged = !!req.session.user;
+    const userId = isLogged ? req.session.user.id : -1;
+    let { q, licencia, orden } = req.query;
+
+   
+    // "Usuarios anónimos solo pueden ver contenido público"
+    if (!isLogged) {
+      licencia = "libre"; // Forzar filtro de solo contenido libre para anónimos
+    }
 
     // Construir condiciones dinámicas
     const condiciones = ["p.estado = 'activa'"];
@@ -223,6 +294,12 @@ exports.ver = async (req, res) => {
 
     const publicacion = rows[0];
 
+    
+    if (!req.session.user && publicacion.licencia === "copyright") {
+      req.flash("error_msg", "Esta fotografía cuenta con protección de Copyright. Debes iniciar sesión para poder verla.");
+      return res.redirect("/auth/login");
+    }
+
     const [comentariosRows] = await sequelize.query(
       `SELECT c.*, u.nombre AS autor_nombre, u.foto_perfil AS autor_foto
        FROM comentarios c
@@ -296,6 +373,15 @@ exports.comentar = async (req, res) => {
 exports.getComentariosApi = async (req, res) => {
   const { id } = req.params;
   try {
+    const pub = await Publicacion.findByPk(id);
+    if (!pub || pub.estado !== 'activa') {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+
+    if (!req.session.user && pub.licencia === 'copyright') {
+      return res.status(403).json({ error: "Contenido protegido por Copyright. Inicia sesión para acceder." });
+    }
+
     const [comentariosRows] = await sequelize.query(
       `SELECT c.*, u.nombre AS autor_nombre, u.foto_perfil AS autor_foto
        FROM comentarios c
