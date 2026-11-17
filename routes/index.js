@@ -4,6 +4,8 @@ const publicacionController = require("../controllers/publicacionController");
 const notificacionController = require("../controllers/notificacionController");
 const seguidosController = require("../controllers/seguidosController");
 const usuarioController = require("../controllers/usuarioController");
+const validadorController = require("../controllers/validadorController");
+const { ensureAuthenticated } = require("../middlewares/auth");
 
 // Ruta principal
 router.get("/", publicacionController.home);
@@ -24,6 +26,11 @@ router.post("/publicaciones/:id/comentar_api", publicacionController.comentarApi
 router.post("/publicaciones/:id/like", publicacionController.like);
 router.post("/publicaciones/:id/cerrar-comentarios", publicacionController.cerrarComentarios);
 router.post("/publicaciones/:id/valorar", publicacionController.valorar);
+
+// Denuncias y moderación de contenido
+router.post("/publicaciones/:id/denunciar", ensureAuthenticated, validadorController.postDenunciarPublicacion);
+router.post("/comentarios/:id/denunciar", ensureAuthenticated, validadorController.postDenunciarComentario);
+router.post("/comentarios/:id/eliminar", ensureAuthenticated, validadorController.postEliminarComentario);
 
 // Notificaciones
 router.get("/notificaciones", notificacionController.verNotificaciones);

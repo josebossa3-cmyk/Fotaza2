@@ -69,6 +69,7 @@ app.use(flash());
 
 // Rutas
 app.use("/auth", require("./routes/auth"));
+app.use("/validador", require("./routes/validador"));
 app.use("/", require("./routes/index"));
 app.use("/usuarios", usuarioRoutes);
 

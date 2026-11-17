@@ -8,6 +8,8 @@ const Valoracion = require("./Valoracion");
 const Guardado = require("./Guardado");
 const Seguidor = require("./Seguidor");
 const Like = require("./Like");
+const DenunciaPublicacion = require("./DenunciaPublicacion");
+const DenunciaComentario = require("./DenunciaComentario");
 
 // Relaciones Usuario - Publicacion
 Usuario.hasMany(Publicacion, { foreignKey: "usuario_id", as: "publicaciones" });
@@ -64,6 +66,18 @@ const Sesion = require("./Sesion");
 Usuario.hasMany(Sesion, { foreignKey: "usuario_id" });
 Sesion.belongsTo(Usuario, { foreignKey: "usuario_id" });
 
+// Relaciones DenunciaPublicacion
+Publicacion.hasMany(DenunciaPublicacion, { foreignKey: "publicacion_id", as: "denuncias" });
+DenunciaPublicacion.belongsTo(Publicacion, { foreignKey: "publicacion_id", as: "publicacion" });
+Usuario.hasMany(DenunciaPublicacion, { foreignKey: "usuario_id", as: "denunciasRealizadas" });
+DenunciaPublicacion.belongsTo(Usuario, { foreignKey: "usuario_id", as: "denunciante" });
+
+// Relaciones DenunciaComentario
+Comentario.hasMany(DenunciaComentario, { foreignKey: "comentario_id", as: "denuncias" });
+DenunciaComentario.belongsTo(Comentario, { foreignKey: "comentario_id", as: "comentario" });
+Usuario.hasMany(DenunciaComentario, { foreignKey: "usuario_id", as: "denunciasComentariosRealizadas" });
+DenunciaComentario.belongsTo(Usuario, { foreignKey: "usuario_id", as: "denunciante" });
+
 module.exports = {
   sequelize,
   Usuario,
@@ -75,4 +89,6 @@ module.exports = {
   Seguidor,
   Sesion,
   Like,
+  DenunciaPublicacion,
+  DenunciaComentario,
 };

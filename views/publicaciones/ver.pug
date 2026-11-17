@@ -96,13 +96,35 @@ block content
 
           //- Botón Me Interesa
           if user && user.id !== publicacion.autor_id
-            button.btn.btn-primary.w-100(
+            button.btn.btn-primary.w-100.mb-2(
               type="button"
               id="btn-me-interesa"
               data-id=publicacion.id
             )
               i.bi.bi-chat-dots.me-2
               | Me interesa
+
+          //Botón Denunciar Publicación 
+          if user && user.id !== publicacion.autor_id
+            if yaDenuncioPub
+              .badge.bg-secondary.text-white.w-100.py-2.mb-2
+                i.bi.bi-flag-fill.me-1
+                | Ya denunciaste esta publicación
+            else
+              button.btn.btn-outline-danger.w-100.mb-2#btn-abrir-denuncia(
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#modalDenunciaPub"
+              )
+                i.bi.bi-flag.me-2
+                | Denunciar publicación
+
+          //Aviso si la publicación tiene denuncias 
+          if user && user.id === publicacion.autor_id && tieneDenuncias
+            .alert.alert-warning.small.mb-2
+              i.bi.bi-shield-exclamation.me-1
+              strong Bloqueada para edición: 
+              | Esta publicación tiene denuncias activas en revisión por lo que no puede ser modificada.
 
           //- Cerrar comentarios 
           if user && user.id === publicacion.autor_id
@@ -138,12 +160,46 @@ block content
             a(href="/auth/login") Iniciá sesión
             |  para comentar.
 
+        // Sección organizada de comentarios denunciados 
+        if user && user.id === publicacion.autor_id && comentariosDenunciadosDetalle && comentariosDenunciadosDetalle.length
+          .card.border-warning.shadow-sm.mb-4
+            .card-header.bg-warning.bg-opacity-10.d-flex.align-items-center.justify-content-between.py-2
+              span.fw-bold.small.text-dark
+                i.bi.bi-shield-exclamation.text-warning.me-2
+                | Comentarios denunciados por la comunidad (#{comentariosDenunciadosDetalle.length})
+              span.badge.bg-warning.text-dark Requiere revisión
+            .card-body.p-0
+              .table-responsive
+                table.table.table-sm.table-hover.align-middle.mb-0.small
+                  thead.table-light
+                    tr
+                      th Comentario
+                      th Motivo
+                      th Justificación
+                      th Denunciante
+                      th Acción
+                  tbody
+                    each cd in comentariosDenunciadosDetalle
+                      tr
+                        td.fw-semibold= cd.comentario_texto
+                        td.text-danger= cd.motivo
+                        td.text-muted= cd.descripcion || 'Sin detalle'
+                        td= cd.denunciante_nombre
+                        td
+                          button.btn.btn-outline-danger.btn-sm.py-0(
+                            type="button"
+                            onclick=`eliminarComentario(${cd.comentario_id})`
+                            title="Eliminar este comentario denunciado"
+                          )
+                            i.bi.bi-trash.me-1
+                            | Borrar
+
         //- Lista de comentarios
         if comentarios.length === 0
           p.text-muted.small Todavía no hay comentarios.
         else
           each comentario in comentarios
-            .d-flex.gap-2.mb-3
+            .d-flex.gap-2.mb-3(id=`comentario-${comentario.id}`)
               if comentario.autor_foto
                 img.rounded-circle(
                   src=comentario.autor_foto
@@ -156,6 +212,170 @@ block content
                   span.text-white.small= comentario.autor_nombre.charAt(0).toUpperCase()
               div.flex-grow-1
                 .d-flex.justify-content-between.align-items-center
-                  span.fw-semibold.small= comentario.autor_nombre
-                  span.text-muted.small= new Date(comentario.fecha).toLocaleDateString('es-AR')
+                  div
+                    span.fw-semibold.small= comentario.autor_nombre
+                    if comentario.denuncias_count > 0
+                      span.badge.bg-danger.bg-opacity-10.text-danger.ms-2.small(style="font-size:0.7rem;")
+                        i.bi.bi-flag-fill.me-1
+                        | #{comentario.denuncias_count} denuncia#{comentario.denuncias_count !== 1 ? 's' : ''}
+                  .d-flex.align-items-center.gap-2
+                    span.text-muted.small= new Date(comentario.fecha).toLocaleDateString('es-AR')
+                    if user && user.id !== comentario.usuario_id
+                      button.btn.btn-link.text-muted.p-0(
+                        type="button"
+                        title="Denunciar comentario"
+                        onclick=`abrirModalDenunciaComentario(${comentario.id})`
+                      )
+                        i.bi.bi-flag
+                    if user && (user.id === publicacion.autor_id || user.id === comentario.usuario_id)
+                      button.btn.btn-link.text-danger.p-0(
+                        type="button"
+                        title="Eliminar comentario"
+                        onclick=`eliminarComentario(${comentario.id})`
+                      )
+                        i.bi.bi-trash
                 p.mb-0.small= comentario.contenido
+
+    // Modal de Denuncia de Publicación
+    .modal.fade#modalDenunciaPub(tabindex="-1" aria-labelledby="modalDenunciaPubLabel" aria-hidden="true")
+      .modal-dialog
+        .modal-content
+          .modal-header
+            h5.modal-title#modalDenunciaPubLabel
+              i.bi.bi-flag-fill.text-danger.me-2
+              | Denunciar publicación
+            button.btn-close(type="button" data-bs-dismiss="modal" aria-label="Cerrar")
+          .modal-body
+            form#formDenunciaPub
+              .mb-3
+                label.form-label.fw-semibold(for="motivoPub") Motivo de la denuncia *
+                select.form-select#motivoPub(required)
+                  option(value="" disabled selected) Seleccioná un motivo...
+                  option(value="Contenido inapropiado u ofensivo") Contenido inapropiado u ofensivo
+                  option(value="Violación de derechos de autor (Copyright)") Violación de derechos de autor (Copyright)
+                  option(value="Spam o publicidad engañosa") Spam o publicidad engañosa
+                  option(value="Violencia o incitación al odio") Violencia o incitación al odio
+                  option(value="Otro motivo") Otro motivo
+              .mb-3
+                label.form-label.fw-semibold(for="descPub") Justificación o descripción
+                textarea.form-control#descPub(rows="3" placeholder="Explicá detalladamente por qué denunciás esta imagen...")
+              .alert.alert-info.small.mb-0
+                i.bi.bi-info-circle.me-1
+                | Tu denuncia será revisada por el Validador de Contenidos. Si acumula más de 3 denuncias, será evaluada con prioridad.
+          .modal-footer
+            button.btn.btn-secondary.btn-sm(type="button" data-bs-dismiss="modal") Cancelar
+            button.btn.btn-danger.btn-sm#btnEnviarDenunciaPub(type="button") Enviar denuncia
+
+    //Modal de Denuncia de Comentario
+    .modal.fade#modalDenunciaComentario(tabindex="-1" aria-labelledby="modalDenunciaComentarioLabel" aria-hidden="true")
+      .modal-dialog
+        .modal-content
+          .modal-header
+            h5.modal-title#modalDenunciaComentarioLabel
+              i.bi.bi-flag-fill.text-danger.me-2
+              | Denunciar comentario
+            button.btn-close(type="button" data-bs-dismiss="modal" aria-label="Cerrar")
+          .modal-body
+            form#formDenunciaComentario
+              input(type="hidden" id="comentarioIdDenunciar")
+              .mb-3
+                label.form-label.fw-semibold(for="motivoComentario") Motivo *
+                select.form-select#motivoComentario(required)
+                  option(value="" disabled selected) Seleccioná un motivo...
+                  option(value="Lenguaje ofensivo o insultos") Lenguaje ofensivo o insultos
+                  option(value="Spam o publicidad") Spam o publicidad
+                  option(value="Acoso o difamación") Acoso o difamación
+                  option(value="Otro motivo") Otro motivo
+              .mb-3
+                label.form-label.fw-semibold(for="descComentario") Justificación
+                textarea.form-control#descComentario(rows="2" placeholder="Opcional...")
+          .modal-footer
+            button.btn.btn-secondary.btn-sm(type="button" data-bs-dismiss="modal") Cancelar
+            button.btn.btn-danger.btn-sm#btnEnviarDenunciaComentario(type="button") Denunciar
+
+block append scripts
+  script.
+    // Envío de denuncia de publicación
+    const btnEnviarPub = document.getElementById('btnEnviarDenunciaPub');
+    if (btnEnviarPub) {
+      btnEnviarPub.addEventListener('click', async () => {
+        const motivo = document.getElementById('motivoPub').value;
+        const descripcion = document.getElementById('descPub').value;
+        if (!motivo) {
+          alert('Por favor selecciona un motivo.');
+          return;
+        }
+        try {
+          const res = await fetch('/publicaciones/#{publicacion.id}/denunciar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ motivo, descripcion })
+          });
+          const data = await res.json();
+          alert(data.message);
+          if (data.success) {
+            window.location.reload();
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Error al enviar la denuncia.');
+        }
+      });
+    }
+
+    // Modal de denuncia de comentario
+    let modalComentarioBs = null;
+    function abrirModalDenunciaComentario(comentarioId) {
+      document.getElementById('comentarioIdDenunciar').value = comentarioId;
+      if (!modalComentarioBs) {
+        modalComentarioBs = new bootstrap.Modal(document.getElementById('modalDenunciaComentario'));
+      }
+      modalComentarioBs.show();
+    }
+
+    const btnEnviarComentario = document.getElementById('btnEnviarDenunciaComentario');
+    if (btnEnviarComentario) {
+      btnEnviarComentario.addEventListener('click', async () => {
+        const comentarioId = document.getElementById('comentarioIdDenunciar').value;
+        const motivo = document.getElementById('motivoComentario').value;
+        const descripcion = document.getElementById('descComentario').value;
+        if (!motivo) {
+          alert('Selecciona un motivo.');
+          return;
+        }
+        try {
+          const res = await fetch(`/comentarios/${comentarioId}/denunciar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ motivo, descripcion })
+          });
+          const data = await res.json();
+          alert(data.message);
+          if (data.success) {
+            window.location.reload();
+          }
+        } catch (e) {
+          console.error(e);
+          alert('Error al denunciar comentario.');
+        }
+      });
+    }
+
+    // Eliminación de comentario 
+    async function eliminarComentario(comentarioId) {
+      if (!confirm('¿Seguro que deseas eliminar este comentario?')) return;
+      try {
+        const res = await fetch(`/comentarios/${comentarioId}/eliminar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        alert(data.message);
+        if (data.success) {
+          window.location.reload();
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error al eliminar comentario.');
+      }
+    }

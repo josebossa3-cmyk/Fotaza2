@@ -31,10 +31,19 @@ block content
 
     section.gallery-section.py-4
         .container-fluid.px-4
-            .section-header.mb-4
-                h2.section-title Inspiración del día
+            .section-header.mb-4.d-flex.flex-wrap.align-items-center.justify-content-between.gap-2
+                div
+                    h2.section-title Inspiración del día
+                    if totalDestacadas || totalBalance
+                        p.text-muted.small.mb-0.mt-1
+                            span.badge.bg-warning.text-dark.me-2
+                                i.bi.bi-star-fill.me-1
+                                | #{totalDestacadas || 0} Destacadas por valoración
+                            span.badge.bg-secondary
+                                i.bi.bi-compass.me-1
+                                | #{totalBalance || 0} Nuevas en balance
                 if !currentUser
-                    p.text-muted.small
+                    p.text-muted.small.mb-0
                         i.bi.bi-shield-lock.me-1
                         | Modo público: solo se exhibe contenido libre de derechos. 
                         a.text-warning(href="/auth/login") Inicia sesión
@@ -68,7 +77,15 @@ block content
                             data-views="0"
                             data-tags=(c.tagsCsv || '')
                         )
-                            .card-visual(style=`background-image: url('${c.url}'); background-size: cover; background-position: center;`)
+                            .card-visual(style=`background-image: url('${c.url}'); background-size: cover; background-position: center; position: relative;`)
+                                if c.es_destacada
+                                    span.badge.bg-warning.text-dark.position-absolute.top-0.start-0.m-2.shadow-sm
+                                        i.bi.bi-star-fill.me-1
+                                        | Destacada
+                                else
+                                    span.badge.bg-dark.bg-opacity-75.text-white.position-absolute.top-0.start-0.m-2.shadow-sm
+                                        i.bi.bi-compass.me-1
+                                        | Balance
                                 .card-overlay
                                     .card-meta
                                         .card-author

@@ -96,13 +96,50 @@ exports.home = async (req, res) => {
     const isLogged = !!req.session.user;
     const userId = isLogged ? req.session.user.id : -1;
 
-    //Anónimos solo ven contenido libre (sin copyright)
+   
     let whereLicencia = "";
     if (!isLogged) {
       whereLicencia = "AND p.licencia = 'libre'";
     }
 
-    const [rows] = await sequelize.query(
+    const [destacadasRows] = await sequelize.query(
+      `SELECT p.id, p.titulo, p.descripcion, p.ruta_archivo AS url, p.etiquetas, p.licencia,
+              COALESCE(u.nombre, 'Usuario') AS autor,
+              u.id AS autor_id,
+              COALESCE(l.likes_count, 0)::int AS likes_count,
+              COALESCE(c.comentarios_count, 0)::int AS comentarios_count,
+              COALESCE(v.valoracion_promedio, 0)::numeric(3,1) AS valoracion_promedio,
+              COALESCE(v.valoracion_cantidad, 0)::int AS valoracion_cantidad,
+              EXISTS(SELECT 1 FROM likes ul WHERE ul.publicacion_id = p.id AND ul.usuario_id = $1) AS user_liked
+       FROM publicaciones p
+       LEFT JOIN usuarios u ON u.id = p.usuario_id
+       LEFT JOIN (
+         SELECT publicacion_id, COUNT(*)::int AS likes_count
+         FROM likes GROUP BY publicacion_id
+       ) l ON l.publicacion_id = p.id
+       LEFT JOIN (
+         SELECT publicacion_id, COUNT(*)::int AS comentarios_count
+         FROM comentarios WHERE activo = true GROUP BY publicacion_id
+       ) c ON c.publicacion_id = p.id
+       INNER JOIN (
+         SELECT publicacion_id, AVG(puntaje)::numeric(3,1) AS valoracion_promedio, COUNT(*)::int AS valoracion_cantidad
+         FROM valoraciones GROUP BY publicacion_id
+         HAVING AVG(puntaje) >= 3.8 AND COUNT(*) >= 1
+       ) v ON v.publicacion_id = p.id
+       WHERE p.estado = 'activa' ${whereLicencia}
+       ORDER BY v.valoracion_promedio DESC, v.valoracion_cantidad DESC, p.create_timestamp DESC
+       LIMIT 12`,
+      { bind: [userId] }
+    );
+
+    const idsDestacadas = destacadasRows.map((r) => r.id);
+
+      let notInClause = "";
+    if (idsDestacadas.length > 0) {
+      notInClause = `AND p.id NOT IN (${idsDestacadas.join(",")})`;
+    }
+
+    const [balanceRows] = await sequelize.query(
       `SELECT p.id, p.titulo, p.descripcion, p.ruta_archivo AS url, p.etiquetas, p.licencia,
               COALESCE(u.nombre, 'Usuario') AS autor,
               u.id AS autor_id,
@@ -125,13 +162,17 @@ exports.home = async (req, res) => {
          SELECT publicacion_id, AVG(puntaje)::numeric(3,1) AS valoracion_promedio, COUNT(*)::int AS valoracion_cantidad
          FROM valoraciones GROUP BY publicacion_id
        ) v ON v.publicacion_id = p.id
-       WHERE p.estado = 'activa' ${whereLicencia}
+       WHERE p.estado = 'activa' ${whereLicencia} ${notInClause}
        ORDER BY p.create_timestamp DESC
-       LIMIT 24`,
+       LIMIT 6`,
       { bind: [userId] }
     );
 
-    const publicaciones = rows.map((row) => {
+    const destacadas = destacadasRows.map((r) => ({ ...r, es_destacada: true }));
+    const balance = balanceRows.map((r) => ({ ...r, es_destacada: false }));
+    const todas = [...destacadas, ...balance];
+
+    const publicaciones = todas.map((row) => {
       const tags = row.etiquetas;
       let tagsCsv = "";
       if (Array.isArray(tags) && tags.length) {
@@ -143,6 +184,8 @@ exports.home = async (req, res) => {
     res.render("home", {
       title: "Inicio",
       publicaciones,
+      totalDestacadas: destacadas.length,
+      totalBalance: balance.length,
       user: req.session.user || null,
     });
   } catch (err) {
@@ -301,16 +344,21 @@ exports.ver = async (req, res) => {
     }
 
     const [comentariosRows] = await sequelize.query(
-      `SELECT c.*, u.nombre AS autor_nombre, u.foto_perfil AS autor_foto
+      `SELECT c.*, u.nombre AS autor_nombre, u.foto_perfil AS autor_foto,
+              COUNT(dc.id)::int AS denuncias_count
        FROM comentarios c
        LEFT JOIN usuarios u ON u.id = c.usuario_id
+       LEFT JOIN denuncias_comentario dc ON dc.comentario_id = c.id
        WHERE c.publicacion_id = $1 AND c.activo = true
+       GROUP BY c.id, u.nombre, u.foto_perfil
        ORDER BY c.fecha ASC`,
       { bind: [id] }
     );
 
     let yaValoro = false;
     let miValoracion = null;
+    let yaDenuncioPub = false;
+
     if (req.session.user) {
       const [votoRows] = await sequelize.query(
         `SELECT puntaje FROM valoraciones 
@@ -321,6 +369,39 @@ exports.ver = async (req, res) => {
         yaValoro = true;
         miValoracion = votoRows[0].puntaje;
       }
+
+      const [denunciaUserRows] = await sequelize.query(
+        `SELECT 1 FROM denuncias_publicacion 
+        WHERE publicacion_id = $1 AND usuario_id = $2`,
+        { bind: [id, req.session.user.id] }
+      );
+      yaDenuncioPub = denunciaUserRows.length > 0;
+    }
+
+    // Comprobar si la publicación tiene denuncias activas (para bloquear modificación del autor)
+    const [denunciasPubRows] = await sequelize.query(
+      `SELECT COUNT(*)::int AS count FROM denuncias_publicacion WHERE publicacion_id = $1`,
+      { bind: [id] }
+    );
+    const tieneDenuncias = (denunciasPubRows[0]?.count || 0) > 0;
+
+    // Si el usuario actual es el autor, cargar detalle de comentarios denunciados para moderarlos
+    let comentariosDenunciadosDetalle = [];
+    if (req.session.user && req.session.user.id === publicacion.autor_id) {
+      const [detallesComentarios] = await sequelize.query(
+        `SELECT dc.id AS denuncia_id, dc.motivo, dc.descripcion, dc.fecha,
+                c.id AS comentario_id, c.contenido AS comentario_texto,
+                u_den.nombre AS denunciante_nombre,
+                u_aut.nombre AS autor_comentario_nombre
+         FROM denuncias_comentario dc
+         JOIN comentarios c ON c.id = dc.comentario_id
+         JOIN usuarios u_den ON u_den.id = dc.usuario_id
+         JOIN usuarios u_aut ON u_aut.id = c.usuario_id
+         WHERE c.publicacion_id = $1 AND c.activo = true
+         ORDER BY dc.fecha DESC`,
+        { bind: [id] }
+      );
+      comentariosDenunciadosDetalle = detallesComentarios;
     }
 
     res.render("publicaciones/ver", {
@@ -329,6 +410,9 @@ exports.ver = async (req, res) => {
       comentarios: comentariosRows,
       yaValoro,
       miValoracion,
+      tieneDenuncias,
+      yaDenuncioPub,
+      comentariosDenunciadosDetalle,
       user: req.session.user || null,
     });
 
