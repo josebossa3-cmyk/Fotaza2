@@ -124,7 +124,7 @@ exports.home = async (req, res) => {
        INNER JOIN (
          SELECT publicacion_id, AVG(puntaje)::numeric(3,1) AS valoracion_promedio, COUNT(*)::int AS valoracion_cantidad
          FROM valoraciones GROUP BY publicacion_id
-         HAVING AVG(puntaje) >= 3.8 AND COUNT(*) >= 1
+         HAVING AVG(puntaje) >= 4.0 AND COUNT(*) >= 5
        ) v ON v.publicacion_id = p.id
        WHERE p.estado = 'activa' ${whereLicencia}
        ORDER BY v.valoracion_promedio DESC, v.valoracion_cantidad DESC, p.create_timestamp DESC
@@ -427,25 +427,35 @@ exports.comentar = async (req, res) => {
 
   const { id } = req.params;
   const { contenido } = req.body;
+  if (typeof contenido !== "string" || !contenido.trim()) {
+    req.flash("error_msg", "El comentario no puede estar vacio.");
+    return res.redirect(`/publicaciones/${id}`);
+  }
 
   try {
     const pub = await Publicacion.findByPk(id);
 
-    if (pub && pub.comentarios_abiertos) {
-      await Comentario.create({
-        contenido,
-        usuario_id: req.session.user.id,
-        publicacion_id: id
+    if (!pub || pub.estado !== "activa") {
+      return res.status(404).render("404");
+    }
+    if (!pub.comentarios_abiertos) {
+      req.flash("error_msg", "Los comentarios estan cerrados.");
+      return res.redirect(`/publicaciones/${id}`);
+    }
+
+    await Comentario.create({
+      contenido: contenido.trim(),
+      usuario_id: req.session.user.id,
+      publicacion_id: id
+    });
+
+    if (pub.usuario_id) {
+      await Notificacion.create({
+        usuario_id: pub.usuario_id,
+        actor_id: req.session.user.id,
+        tipo: 'comentario',
+        referencia_id: parseInt(id)
       });
-      
-      if (pub.usuario_id) {
-        await Notificacion.create({
-          usuario_id: pub.usuario_id,
-          actor_id: req.session.user.id,
-          tipo: 'comentario',
-          referencia_id: parseInt(id)
-        });
-      }
     }
   } catch (err) {
     console.error("Error al comentar:", err);
@@ -488,12 +498,18 @@ exports.comentarApi = async (req, res) => {
 
   const { id } = req.params;
   const { contenido } = req.body;
-  if (!contenido || !contenido.trim()) {
+  if (typeof contenido !== "string" || !contenido.trim()) {
     return res.status(400).json({ error: "Comentario vacío" });
   }
 
   try {
-    const pub = await Publicacion.findByPk(id);
+    const pub = await Publicacion.findOne({ where: { id, estado: "activa" } });
+    if (!pub) {
+      return res.status(404).json({ error: "Publicacion no encontrada" });
+    }
+    if (!pub.comentarios_abiertos) {
+      return res.status(403).json({ error: "Los comentarios estan cerrados" });
+    }
 
     const result = await Comentario.create({
       contenido: contenido.trim(),
@@ -533,6 +549,11 @@ exports.like = async (req, res) => {
   const usuario_id = req.session.user.id;
 
   try {
+    const pub = await Publicacion.findOne({ where: { id, estado: "activa" } });
+    if (!pub) {
+      return res.status(404).json({ error: "Publicacion no encontrada" });
+    }
+
     const result = await Like.findOne({
       where: { publicacion_id: id, usuario_id: usuario_id }
     });
@@ -549,7 +570,6 @@ exports.like = async (req, res) => {
       });
       liked = true;
 
-      const pub = await Publicacion.findByPk(id);
       if (pub && pub.usuario_id) {
         await Notificacion.create({
           usuario_id: pub.usuario_id,
@@ -584,10 +604,15 @@ exports.cerrarComentarios = async (req, res) => {
   try {
     const pub = await Publicacion.findByPk(id);
 
-    if (pub && pub.usuario_id === req.session.user.id) {
-      pub.comentarios_abiertos = !pub.comentarios_abiertos;
-      await pub.save();
+    if (!pub || pub.estado !== "activa") {
+      return res.status(404).render("404");
     }
+    if (pub.usuario_id !== req.session.user.id) {
+      return res.status(403).send("Solo el autor puede cambiar el estado de los comentarios.");
+    }
+
+    pub.comentarios_abiertos = !pub.comentarios_abiertos;
+    await pub.save();
   } catch (err) {
     console.error("Error al cerrar comentarios:", err);
   }
@@ -602,14 +627,17 @@ exports.valorar = async (req, res) => {
 
   const { id } = req.params;
   const { puntaje } = req.body;
-  const puntajeNum = parseInt(puntaje);
+  const puntajeNum = Number(puntaje);
 
-  if (puntajeNum < 1 || puntajeNum > 5) {
+  if (!/^[1-5]$/.test(String(puntaje))) {
     return res.status(400).json({ error: "Puntaje inválido" });
   }
 
   try {
-    const pub = await Publicacion.findByPk(id);
+    const pub = await Publicacion.findOne({ where: { id, estado: "activa" } });
+    if (!pub) {
+      return res.status(404).json({ error: "Publicacion no encontrada" });
+    }
 
     if (pub && pub.usuario_id === req.session.user.id) {
       return res.status(403).json({ error: "No podés valorar tu propia publicación" });

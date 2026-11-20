@@ -3,6 +3,9 @@ const { Sesion, Usuario } = require("../models");
 // verifica que el usuario esté autenticado mediante sesión
 const ensureAuthenticated = async (req, res, next) => {
     if (!req.session || !req.session.user) {
+        if (req.is("application/json") || req.path.endsWith("_api") || req.xhr) {
+            return res.status(401).json({ success: false, error: "No autenticado" });
+        }
         req.flash("error_msg", "Debes iniciar sesión para acceder a esta página.");
         return res.redirect("/auth/login");
     }
@@ -26,7 +29,7 @@ const ensureAuthenticated = async (req, res, next) => {
         next();
     } catch (error) {
         console.error("Error al verificar estado de usuario:", error);
-        next();
+        return res.status(503).send("No se pudo verificar el estado de la cuenta. Intenta nuevamente.");
     }
 };
 
@@ -39,16 +42,32 @@ const ensureGuest = (req, res, next) => {
 };
 
 const ensureRole = (rolRequerido) => {
-    return (req, res, next) => {
+    return async (req, res, next) => {
         if (!req.session || !req.session.user) {
-            req.flash("error_msg", "Debes iniciar sesión.");
+            req.flash("error_msg", "Debes iniciar sesion.");
             return res.redirect("/auth/login");
         }
-        if (req.session.user.rol !== rolRequerido) {
-            req.flash("error_msg", "No tienes permisos para acceder a esta sección.");
-            return res.redirect("/");
+
+        try {
+            const usuario = await Usuario.findByPk(req.session.user.id, {
+                attributes: ["id", "activo", "rol"],
+            });
+            if (!usuario || !usuario.activo) {
+                return req.session.destroy(() => {
+                    res.clearCookie("connect.sid");
+                    res.redirect("/auth/login?error=inactiva");
+                });
+            }
+            req.session.user.rol = usuario.rol;
+            if (usuario.rol !== rolRequerido) {
+                req.flash("error_msg", "No tienes permisos para acceder a esta seccion.");
+                return res.redirect("/");
+            }
+            next();
+        } catch (error) {
+            console.error("Error al verificar permisos de usuario:", error);
+            return res.status(503).send("No se pudieron verificar los permisos. Intenta nuevamente.");
         }
-        next();
     };
 };
 

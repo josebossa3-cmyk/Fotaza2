@@ -257,8 +257,8 @@ block content
                   option(value="Violencia o incitación al odio") Violencia o incitación al odio
                   option(value="Otro motivo") Otro motivo
               .mb-3
-                label.form-label.fw-semibold(for="descPub") Justificación o descripción
-                textarea.form-control#descPub(rows="3" placeholder="Explicá detalladamente por qué denunciás esta imagen...")
+                label.form-label.fw-semibold(for="descPub") Justificación o descripción *
+                textarea.form-control#descPub(rows="3" required placeholder="Explicá detalladamente por qué denunciás esta imagen...")
               .alert.alert-info.small.mb-0
                 i.bi.bi-info-circle.me-1
                 | Tu denuncia será revisada por el Validador de Contenidos. Si acumula más de 3 denuncias, será evaluada con prioridad.
@@ -301,8 +301,8 @@ block append scripts
       btnEnviarPub.addEventListener('click', async () => {
         const motivo = document.getElementById('motivoPub').value;
         const descripcion = document.getElementById('descPub').value;
-        if (!motivo) {
-          alert('Por favor selecciona un motivo.');
+        if (!motivo || !descripcion.trim()) {
+          alert('Selecciona un motivo y explica la denuncia.');
           return;
         }
         try {

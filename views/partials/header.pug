@@ -54,7 +54,8 @@ nav.navbar.navbar-expand-lg.navbar-dark.bg-dark.shadow-sm
                             li
                                 hr.dropdown-divider
                             li
-                                a.dropdown-item(href="/auth/logout") Cerrar sesión
+                                form(action="/auth/logout" method="POST")
+                                    button.dropdown-item(type="submit") Cerrar sesión
                 else
                     li.nav-item
                         a.nav-link(href="/auth/login") Iniciar sesión

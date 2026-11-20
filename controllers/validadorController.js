@@ -157,8 +157,12 @@ exports.postDenunciarPublicacion = async (req, res) => {
   const { motivo, descripcion } = req.body;
   const usuarioId = req.session.user.id;
 
-  if (!motivo || !motivo.trim()) {
+  if (typeof motivo !== "string" || !motivo.trim()) {
     return res.status(400).json({ success: false, message: "Debes seleccionar un motivo para la denuncia." });
+  }
+
+  if (typeof descripcion !== "string" || !descripcion.trim()) {
+    return res.status(400).json({ success: false, message: "Debes explicar el motivo de la denuncia." });
   }
 
   try {

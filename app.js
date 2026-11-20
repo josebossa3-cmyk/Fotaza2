@@ -32,38 +32,42 @@ app.use(async (req, res, next) => {
   res.locals.unreadNotifications = 0;
 
   if (req.session.user) {
+    const { Usuario, Notificacion } = require("./models");
+    let dbUser;
     try {
-      const { Usuario, Notificacion } = require("./models");
-      const dbUser = await Usuario.findByPk(req.session.user.id, {
+      dbUser = await Usuario.findByPk(req.session.user.id, {
         attributes: ["id", "nombre", "email", "rol", "activo", "foto_perfil"],
       });
+    } catch (error) {
+      console.error("Error al verificar la sesion:", error);
+      return res.status(503).send("No se pudo verificar el estado de la cuenta. Intenta nuevamente.");
+    }
 
-      // Si el usuario fue inactivado o eliminado
-      if (!dbUser || !dbUser.activo) {
-        req.session.destroy();
+    if (!dbUser || !dbUser.activo) {
+      return req.session.destroy(() => {
         res.locals.currentUser = null;
-        return res.redirect("/auth/login?error=inactiva");
-      }
+        res.clearCookie("connect.sid");
+        res.redirect("/auth/login?error=inactiva");
+      });
+    }
 
-      // Sincronizar campos clave en sesión
-      req.session.user.rol = dbUser.rol;
-      req.session.user.nombre = dbUser.nombre;
-      req.session.user.foto_perfil = dbUser.foto_perfil;
-      req.session.user.activo = dbUser.activo;
-      res.locals.currentUser = req.session.user;
+    req.session.user.rol = dbUser.rol;
+    req.session.user.nombre = dbUser.nombre;
+    req.session.user.foto_perfil = dbUser.foto_perfil;
+    req.session.user.activo = dbUser.activo;
+    res.locals.currentUser = req.session.user;
 
-      const unreadCount = await Notificacion.count({
+    try {
+      res.locals.unreadNotifications = await Notificacion.count({
         where: { usuario_id: req.session.user.id, leida: false },
       });
-      res.locals.unreadNotifications = unreadCount;
-    } catch (e) {
-      // Si la tabla no existe todavía no rompe nada
+    } catch (error) {
+      console.error("Error al cargar el contador de notificaciones:", error);
     }
   }
 
   next();
 });
-
 
 app.use(flash());
 

@@ -10,7 +10,6 @@ router.post("/login", ensureGuest, authController.postLogin);
 router.get("/register", ensureGuest, authController.getRegister);
 router.post("/register", ensureGuest, authController.postRegister);
 
-router.get("/logout", authController.getLogout);
 router.post("/logout", authController.postLogout);
 
 router.get("/subirFoto", ensureAuthenticated, authController.getSubirFoto);
